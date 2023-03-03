@@ -70,6 +70,12 @@ importers:
       tsconfig: link:../../packages/tsconfig
       typescript: 4.9.5
 
+  packages/core:
+    specifiers:
+      tsc: ^2.0.4
+    dependencies:
+      tsc: 2.0.4
+
   packages/eslint-config-custom:
     specifiers:
       eslint: ^7.23.0
@@ -2296,6 +2302,11 @@ packages:
     engines: {node: '>=8.0'}
     dependencies:
       is-number: 7.0.0
+    dev: false
+
+  /tsc/2.0.4:
+    resolution: {integrity: sha512-fzoSieZI5KKJVBYGvwbVZs/J5za84f2lSTLPYf6AGiIf43tZ3GNrI1QzTLcjtyDDP4aLxd46RTZq1nQxe7+k5Q==}
+    hasBin: true
     dev: false
 
   /tsconfig-paths/3.14.2:
