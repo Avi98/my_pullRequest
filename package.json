@@ -14,13 +14,14 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
+    "@types/node": "^18.14.5",
     "eslint-config-custom": "workspace:*",
     "prettier": "latest",
+    "tar": "^6.1.13",
     "turbo": "latest"
   },
   "engines": {
     "node": ">=14.0.0"
   },
-  "dependencies": {},
   "packageManager": "pnpm@7.21.0"
 }
