@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "^18.14.5",
+    "@types/tar": "^6.1.4",
     "eslint-config-custom": "workspace:*",
     "prettier": "latest",
     "tar": "^6.1.13",
@@ -23,5 +24,8 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "packageManager": "pnpm@7.21.0"
+  "packageManager": "pnpm@7.21.0",
+  "dependencies": {
+    "dotenv": "^16.0.3"
+  }
 }

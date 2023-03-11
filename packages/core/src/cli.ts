@@ -20,6 +20,7 @@ const defaultConfig = {
   region: "us-east-1",
   imageId: "ami-09a0dac4253cfa03f",
   instanceType: "t3.nano",
+  keyName: "my-proto-type-keyPair",
 };
 
 /**
@@ -63,6 +64,7 @@ const connectInstance = async () => {
     MaxCount: 1,
     MinCount: 1,
     ImageId: defaultConfig.imageId,
+    KeyName: defaultConfig.keyName,
     InstanceType: defaultConfig.instanceType,
     TagSpecifications: [
       {
