@@ -1,4 +1,6 @@
-import { main } from "./cli";
+import { EC2Client } from "@aws-sdk/client-ec2";
+import { Instance } from "./instance";
+import { LunchServer } from "./launchServer";
 /**
  * Prototype
  *
@@ -9,4 +11,17 @@ import { main } from "./cli";
  * 5. clean ec2 instance
  */
 
+console.log("mau");
+const main = async () => {
+  // const n = Instance.createInstance({
+  //   defaultPort: 300,
+  //   dns: "",
+  //   instanceType: "is",
+  // });
+
+  const serverUp = new LunchServer();
+  await serverUp.run(
+    "https://Covered-By-Sage@dev.azure.com/Covered-By-Sage/HobNob/_git/front-end"
+  );
+};
 main();
