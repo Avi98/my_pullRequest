@@ -1,0 +1,27 @@
+{
+  "name": "@pr/core",
+  "version": "0.0.0",
+  "main": "dist/index.ts",
+  "types": "./index.ts",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "lint": "eslint *.ts*",
+    "dev": "ts-node --esm src/index.ts",
+    "dev:debug": "nodemon --config nodemon.json --inspect-brk src/index.ts"
+  },
+  "keywords": [],
+  "author": "Avinash",
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.282.0",
+    "execa": "^7.1.0",
+    "nodemon": "^2.0.21",
+    "ts-node": "^10.9.1",
+    "tsconfig": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^18.14.5",
+    "tsc": "^2.0.4",
+    "typescript": "^4.7.4"
+  }
+}

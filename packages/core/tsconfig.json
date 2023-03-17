@@ -1,0 +1,24 @@
+{
+  // "extends": "tsconfig/base.json",
+  "include": ["src/*/**.ts"],
+  "exclude": ["dist", "build", "node_modules"],
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "incremental": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "outDir": "./dist"
+  },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
+}
