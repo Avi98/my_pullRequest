@@ -38,3 +38,4 @@ repo_dir
 
 # test
 tmp
+tmp/**
