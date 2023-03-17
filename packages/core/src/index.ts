@@ -20,8 +20,6 @@ const main = async () => {
   // });
 
   const serverUp = new LunchServer();
-  await serverUp.run(
-    "https://Covered-By-Sage@dev.azure.com/Covered-By-Sage/HobNob/_git/front-end"
-  );
+  await serverUp.run("https://github.com/itsjavi/turborepo-react-next.git");
 };
 main();

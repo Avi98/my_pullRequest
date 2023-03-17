@@ -18,7 +18,6 @@
     "@types/tar": "^6.1.4",
     "eslint-config-custom": "workspace:*",
     "prettier": "latest",
-    "tar": "^6.1.13",
     "turbo": "latest"
   },
   "engines": {

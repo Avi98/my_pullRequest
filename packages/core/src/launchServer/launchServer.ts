@@ -1,77 +1,88 @@
-import { execa } from "execa";
-import { existsSync } from "fs";
+import { execa, $ } from "execa";
+import {
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  ReadStream,
+  WriteStream,
+} from "fs";
+
 import { join } from "path";
-import { pipeline } from "stream";
+import { createGzip, gunzip } from "zlib";
+import { pipeline } from "stream/promises";
 
 const config = {
   //   localTempPath: "/tmp/app",
-  localTempPath: join(process.cwd(), "tmp"),
+  localTempPath: join(process.cwd(), "../../tmp"),
 };
 export class LunchServer {
-  /**
-   * 1. get git path
-   * 2. checkout and clone repo
-   * 3. zip file
-   * 4. initiate ec2 instance
-   */
   async run(appPaths: string[] | string) {
     try {
       const dockerfilePaths =
         typeof appPaths === "string" ? [appPaths] : appPaths;
-
-      const git = this.getGitUrl(appPaths[0]);
-      await this.tarRepo(git);
+      const git = this.getGitUrl(dockerfilePaths[0]);
+      // this.extractRepo(`${config.localTempPath}/repo.gz`);
+      await this.cloneRepo(git);
+      await this.compressRepo(config.localTempPath);
     } catch (error) {
       console.error(error);
     }
   }
 
-  async tarRepo(git: { url: string; branch: string }) {
+  private async cloneRepo(git: { url: string; branch: string }) {
+    await this.removeTempAppDir();
     try {
-      const readRepoStream = await this.cloneRepo(git);
-      const compressRepoStream = await this.tarballChunks();
-
-      if (readRepoStream && compressRepoStream) {
-        readRepoStream.pipe(compressRepoStream);
-      }
+      const repo = await execa("git", [
+        "clone",
+        git.url,
+        "--depth=1",
+        `--branch=${git.branch}`,
+        config.localTempPath,
+      ]);
+      return repo;
     } catch (error) {
-      throw new Error(
-        "RepoDownloadCompressFailed: Failed to download repo and compress",
-        { cause: error }
-      );
+      throw new Error("Can not clone error", { cause: error });
     }
   }
 
-  async cloneRepo({ url, branch }: { url: string; branch: string }) {
-    // remove tmp/app
-    await this.removeTempAppDir();
-
-    return execa("git clone", [
-      url,
-      "branch",
-      "--depth=1",
-      `--branch=${branch}`,
-      config.localTempPath,
-    ]).all;
+  private async compressRepo(repoPath: string) {
+    await execa("tar", [
+      "cfz",
+      `${repoPath}/app.tar.gz`,
+      "--exclude",
+      ".git",
+      "-C",
+      repoPath,
+      ".",
+    ])
+      .on("error", (r) => {
+        console.error(r);
+      })
+      .on("exit", (code) => {
+        if (code !== 0) {
+          throw new Error("Failed to compress repo.");
+        }
+      });
   }
-
-  async tarballChunks() {
-    return execa("tar", ["czf", "/tmp/app.tar.gz", "--exclude"]).stdin;
-  }
-
-  async removeTempAppDir() {
+  private async removeTempAppDir() {
     if (existsSync(config.localTempPath)) {
       await execa("rm", ["-rf", config.localTempPath]);
     }
   }
 
-  getGitUrl(appPath: string) {
+  extractRepo(path: string) {
+    const opStream = createReadStream(path).pipe(createGzip());
+    opStream.pipe(createWriteStream(config.localTempPath));
+  }
+
+  private getGitUrl(appPath: string) {
     const hasHttpRegEx = /^https?/;
 
     if (!hasHttpRegEx.test(appPath))
       throw new Error("APP_PATH should be git clone path");
 
-    const [gitUrl, ref = "master"] = appPath.split("#", 2);
+    const [gitUrl, ref = "main"] = appPath.split("#", 2);
     return { url: gitUrl, branch: ref };
   }
 }
