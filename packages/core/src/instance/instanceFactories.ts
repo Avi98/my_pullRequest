@@ -7,15 +7,25 @@ import {
   DescribeRegionsCommand,
   DescribeImagesCommandInput,
   DescribeImagesCommand,
+  EC2,
+  EC2ClientConfig,
+  DescribeInstanceStatusCommandInput,
+  DescribeInstanceStatusCommand,
 } from "@aws-sdk/client-ec2";
 
 export class InstanceCmdFactories {
-  static getRunInstanceCmd(input: RunInstancesCommandInput) {
+  static createInstance(input: EC2ClientConfig) {
+    return new EC2(input);
+  }
+  static runInstance(input: RunInstancesCommandInput) {
     return new RunInstancesCommand(input);
   }
 
-  static getInstance(input: DescribeInstancesCommandInput) {
+  static describeInstance(input: DescribeInstancesCommandInput) {
     return new DescribeInstancesCommand(input);
+  }
+  static getInstanceStatus(input: DescribeInstanceStatusCommandInput) {
+    return new DescribeInstanceStatusCommand(input);
   }
 
   static getRegions(input: DescribeRegionsCommandInput) {
