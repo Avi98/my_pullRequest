@@ -4,6 +4,7 @@ import { createReadStream, createWriteStream, existsSync } from "fs";
 import { join } from "path";
 import { createGzip } from "zlib";
 import { Instance } from "../instance";
+import { polling } from "../instance/utils";
 import { env } from "../utils/env";
 
 const config = {
@@ -38,20 +39,14 @@ export class LunchServer {
           console.log("waiting for 2ms");
         }, 2000)
       );
-      await this.instance.waitUntilInstance();
-      await this.instance.verifySshConnection();
-      // await this.instance.waitForSsh();
-
-      /**
-       * 1. scp repo to server
-       * 2. build docker
-       * 3. run docker image
-       * 4. expose end point
-       *
-       * todo add destroy method
-       * todo add kill method
-       *
-       */
+      await this.instance.waitUntilInstance().then(async (isRunning) => {
+        if (isRunning)
+          //instance after starting tasks some time to start sshd
+          await polling({
+            maxRetries: 3,
+            cb: () => this.instance.verifySshConnection(),
+          });
+      });
     } catch (error) {
       console.error(error);
     }

@@ -22,6 +22,12 @@ type LaunchInstanceConfig = {
   sshPublicKey: string;
   instanceType?: string;
 };
+
+type InitializeInstance = {
+  name: string | null;
+  id: string | null;
+  dns: string | null;
+};
 interface IInstance {
   launch: (config: LaunchInstanceConfig) => void;
 }
@@ -61,13 +67,11 @@ export class Instance implements IInstance {
    */
   async launch(instanceConfig: LaunchInstanceConfig) {
     try {
-      this.instanceName = instanceConfig.name;
-
-      // if (await this.isRunning(instanceConfig.name)) {
-      //   console.log({ instance: "instance already running" });
-      //   // start the same instance
-      //   return;
-      // }
+      if (await this.isRunning(instanceConfig.name)) {
+        console.log({ instance: "instance already running" });
+        // start the same instance
+        return;
+      }
 
       const userData = [
         `#!/bin/bash
@@ -108,8 +112,12 @@ export class Instance implements IInstance {
           console.log(
             `instance launched with id ${instance.Instances?.at(0)?.InstanceId}`
           );
-          this.launchedInstanceId =
-            instance.Instances?.at(0)?.InstanceId || null;
+          const launchedInstance = instance.Instances?.at(0) || null;
+          this.initializeInstance({
+            dns: launchedInstance?.PublicDnsName || null,
+            id: launchedInstance?.InstanceId || null,
+            name: instanceConfig.name || null,
+          });
 
           return instance.Instances?.at(0)?.InstanceId;
         })
@@ -136,20 +144,25 @@ export class Instance implements IInstance {
     throw new Error("Instance timeout aborting instance creation");
   }
 
-  async verifySshConnection() {
-    await this.ssh(`test -f ${this.semaphore}`);
-  }
+  verifySshConnection = async () => {
+    let sshConnected = false;
+    await this.ssh(`test -f ${this.semaphore}`)
+      .then(() => {
+        return (sshConnected = true);
+      })
+      .catch(() => {
+        sshConnected = false;
+      });
+    return sshConnected;
+  };
 
   private async scp(cmd: string) {}
 
   private async ssh(cmd: string) {
     const publicDns = this.publicDns;
     const privateKey = this.privateKey;
-    // const sshAddress = `${this.instanceName}@${this.publicDns}`;
-    const sshAddress = `ec2-user@${this.publicDns}`;
+    const sshAddress = `ec2-user@${publicDns}`;
 
-    // console.log({ privateKey });
-    // //@todo create common file
     const tempPrivateKey = join(process.cwd(), "../../tmp/private");
 
     if (!existsSync(tempPrivateKey)) {
@@ -157,35 +170,48 @@ export class Instance implements IInstance {
       console.log(`Private key saved to ${tempPrivateKey}`);
     }
 
-    if (publicDns)
-      await $`ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd}`
-        .then((_) => {
-          console.log(
-            `successfully ran this cmd $ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd}`
-          );
-        })
-        .catch((e) => {
-          throw new Error("Error while logging the cmd", { cause: e });
-        });
+    await $`ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd}`
+      .then((_) => {
+        console.log(
+          `\n successfully ran this cmd $ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd} \n`
+        );
+      })
+      .catch((e) => {
+        throw new Error("Error while logging the cmd", { cause: e });
+      });
   }
 
-  private async isRunning(name: string) {
+  private initializeInstance(currentInstance: InitializeInstance) {
+    this.instanceName = currentInstance.name;
+    this.launchedInstanceId = currentInstance.id;
+    this.publicDns = currentInstance.dns;
+  }
+
+  private isRunning = async (name: string) => {
     let isRunning = false;
     const instanceId = this.launchedInstanceId;
+
+    console.log("check status is running", { instanceId });
+
     try {
-      if (!instanceId)
-        throw new Error("Can not check running status without instanceId");
-      await this.getInstanceInfoById(instanceId, name)
+      await this.getInstanceInfo({ id: instanceId || undefined, name })
         .then((res) => {
           console.log(`checking is running ${res.$metadata.attempts}`);
           const instance = res.Reservations?.at(0);
           instance?.Instances?.forEach((inst) => {
-            console.log(`instance name ${inst.Tags?.at(0)?.Value}`);
             console.log(`instance state ${inst?.State?.Name}`);
             if (
               inst?.State?.Name &&
               this.liveInstanceState(inst?.State?.Name)
             ) {
+              //dns gets assigned only when the instance is live
+
+              if (inst.PublicDnsName && inst.InstanceId)
+                this.initializeInstance({
+                  dns: inst.PublicDnsName,
+                  id: inst.InstanceId,
+                  name: name,
+                });
               isRunning = true;
             }
           });
@@ -198,26 +224,30 @@ export class Instance implements IInstance {
       isRunning = false;
     }
     return isRunning;
-  }
+  };
 
   private liveInstanceState = (state: string | InstanceStateName) =>
     [InstanceStateName.running].includes(state as InstanceStateName);
 
-  private async getInstanceInfoById(id: string, name: string) {
+  private async getInstanceInfo(queryInstance: { id?: string; name: string }) {
+    const ids = queryInstance.id ? [queryInstance.id] : undefined;
     return await this.client
       .send(
         this.cmd.describeInstance({
-          InstanceIds: [id],
+          InstanceIds: ids,
           Filters: [
             {
               Name: "tag:Name",
-              Values: [name],
+              Values: [queryInstance.name],
             },
           ],
         })
       )
-      .then((res) => res)
+      .then((res) => {
+        return res;
+      })
       .catch((e) => {
+        console.error(e);
         throw e;
       });
   }
