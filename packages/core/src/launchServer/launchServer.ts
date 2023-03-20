@@ -4,7 +4,7 @@ import { createReadStream, createWriteStream, existsSync } from "fs";
 import { join } from "path";
 import { createGzip } from "zlib";
 import { Instance } from "../instance";
-import { polling } from "../instance/utils";
+import { polling, sleep } from "../instance/utils";
 import { env } from "../utils/env";
 
 const config = {
@@ -34,19 +34,26 @@ export class LunchServer {
         sshPublicKey: env.sshKeys.publicKey,
       });
 
-      await Promise.resolve(
-        setTimeout(() => {
-          console.log("waiting for 2ms");
-        }, 2000)
-      );
-      await this.instance.waitUntilInstance().then(async (isRunning) => {
-        if (isRunning)
+      await sleep(2);
+
+      await this.instance
+        .waitUntilInstance()
+        .then(async () => {
           //instance after starting tasks some time to start sshd
           await polling({
             maxRetries: 3,
             cb: () => this.instance.verifySshConnection(),
           });
-      });
+        })
+        .catch((e) => {
+          console.error(e);
+        });
+
+      /**
+       * scp tar files
+       * extract cpy
+       * create new docker image
+       */
     } catch (error) {
       console.error(error);
     }

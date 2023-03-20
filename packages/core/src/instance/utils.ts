@@ -21,3 +21,11 @@ export const polling = async ({
   }
   return result;
 };
+
+export const sleep = (timeout = 2) => {
+  return new Promise((res) =>
+    setTimeout(() => {
+      res(console.log(`sleep for ${timeout}s`));
+    }, 1000 * timeout)
+  );
+};

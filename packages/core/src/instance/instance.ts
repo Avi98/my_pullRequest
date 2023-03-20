@@ -86,6 +86,7 @@ export class Instance implements IInstance {
 
       await this.client
         .send(
+          //imageid changes frequently need to have dynamic image id
           this.cmd.runInstance({
             MaxCount: 1,
             MinCount: 1,

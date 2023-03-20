@@ -7,16 +7,18 @@ importers:
       '@types/node': ^18.14.5
       '@types/tar': ^6.1.4
       dotenv: ^16.0.3
+      dotenv-cli: ^7.1.0
       eslint-config-custom: workspace:*
       prettier: latest
       turbo: latest
     dependencies:
       dotenv: 16.0.3
+      dotenv-cli: 7.1.0
     devDependencies:
       '@types/node': 18.14.5
       '@types/tar': 6.1.4
       eslint-config-custom: link:packages/eslint-config-custom
-      prettier: 2.8.4
+      prettier: 2.8.5
       turbo: 1.8.3
 
   packages/core:
@@ -26,7 +28,6 @@ importers:
       execa: ^7.1.0
       nodemon: ^2.0.21
       ts-node: ^10.9.1
-      tsc: ^2.0.4
       tsconfig: workspace:*
       typescript: ^4.7.4
     dependencies:
@@ -37,7 +38,6 @@ importers:
       tsconfig: link:../tsconfig
     devDependencies:
       '@types/node': 18.14.5
-      tsc: 2.0.4
       typescript: 4.9.5
 
   packages/eslint-config-custom:
@@ -1379,6 +1379,21 @@ packages:
       esutils: 2.0.3
     dev: false
 
+  /dotenv-cli/7.1.0:
+    resolution: {integrity: sha512-motytjZFQB3ZtGTIN4c0vnFgv4kuNZ2WxVnGY6PVFiygCzkm3IFBBguDUzezd9HgNA0OYYd6vNCWlozs0Q1Zxg==}
+    hasBin: true
+    dependencies:
+      cross-spawn: 7.0.3
+      dotenv: 16.0.3
+      dotenv-expand: 10.0.0
+      minimist: 1.2.8
+    dev: false
+
+  /dotenv-expand/10.0.0:
+    resolution: {integrity: sha512-GopVGCpVS1UKH75VKHGuQFqS1Gusej0z4FyQkPdwjil2gNIv+LNsqBlboOzpJFZKVT95GkCyWJbBSdFEFUWI2A==}
+    engines: {node: '>=12'}
+    dev: false
+
   /dotenv/16.0.3:
     resolution: {integrity: sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==}
     engines: {node: '>=12'}
@@ -2569,8 +2584,8 @@ packages:
     engines: {node: '>= 0.8.0'}
     dev: false
 
-  /prettier/2.8.4:
-    resolution: {integrity: sha512-vIS4Rlc2FNh0BySk3Wkd6xmwxB0FpOndW5fisM5H8hsZSxU2VWVB5CWIkIjWvrHjIhxk2g3bfMKM87zNTrZddw==}
+  /prettier/2.8.5:
+    resolution: {integrity: sha512-3gzuxrHbKUePRBB4ZeU08VNkUcqEHaUaouNt0m7LGP4Hti/NuB07C7PPTM/LkWqXoJYJn2McEo5+kxPNrtQkLQ==}
     engines: {node: '>=10.13.0'}
     hasBin: true
     dev: true
@@ -2905,11 +2920,6 @@ packages:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
     dev: false
-
-  /tsc/2.0.4:
-    resolution: {integrity: sha512-fzoSieZI5KKJVBYGvwbVZs/J5za84f2lSTLPYf6AGiIf43tZ3GNrI1QzTLcjtyDDP4aLxd46RTZq1nQxe7+k5Q==}
-    hasBin: true
-    dev: true
 
   /tsconfig-paths/3.14.2:
     resolution: {integrity: sha512-o/9iXgCYc5L/JxCHPe3Hvh8Q/2xm5Z+p18PESBU6Ff33695QnCHBEjcytY2q19ua7Mbl/DavtBOLq+oG0RCL+g==}
