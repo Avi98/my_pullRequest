@@ -3,19 +3,16 @@ import {
   EC2Client,
   InstanceStateName,
 } from "@aws-sdk/client-ec2";
+import { $, execa } from "execa";
+import { existsSync, writeFileSync, writeSync } from "fs";
+import { join } from "path";
+import { env } from "../utils/env";
 import { InstanceCmdFactories } from "./instanceFactories";
-
-/**
- * Creates EC2 instance/
- * 1. launch instance
- * 2. open_ports
- * 3. wait until ssh is ready
- * 4. scp files from git repo to instance
- * 5. destroy instance
- */
+import { polling } from "./utils";
 
 type InstanceConfigType = {
   region?: string;
+  sshPrivateKey?: string;
 };
 
 type LaunchInstanceConfig = {
@@ -30,11 +27,29 @@ interface IInstance {
 }
 export class Instance implements IInstance {
   private client: EC2Client;
+  private launchedInstanceId: string | null;
+  private instanceName: string | null;
+  private semaphore: string;
+  private privateKey: string;
+  private publicDns: string | null;
+
   private cmd: typeof InstanceCmdFactories;
 
-  constructor({ region = "us-east-1" }: InstanceConfigType) {
+  constructor({
+    region = "us-east-1",
+    sshPrivateKey = env.sshKeys.privateKey,
+  }: InstanceConfigType) {
     this.cmd = InstanceCmdFactories;
-    this.client = InstanceCmdFactories.createInstance({ region });
+
+    console.log({ env: env.sshKeys });
+    this.semaphore = "/etc/prbranch/ready";
+    this.launchedInstanceId = null;
+    this.instanceName = null;
+    this.publicDns = null;
+    this.privateKey = sshPrivateKey;
+    this.client = InstanceCmdFactories.createInstance({
+      region,
+    });
   }
 
   /**
@@ -46,70 +61,133 @@ export class Instance implements IInstance {
    */
   async launch(instanceConfig: LaunchInstanceConfig) {
     try {
-      if (await this.isRunning(instanceConfig.name)) {
-        console.log({ instance: "instance already running" });
-        // start the same instance
-        return;
-      }
+      this.instanceName = instanceConfig.name;
+
+      // if (await this.isRunning(instanceConfig.name)) {
+      //   console.log({ instance: "instance already running" });
+      //   // start the same instance
+      //   return;
+      // }
 
       const userData = [
-        `echo '${instanceConfig.sshPublicKey}\n' > /home/ec2-user/.ssh/authorized_keys`,
-        `echo 'cd ${instanceConfig.appPath}' > /etc/profile.d/pullpreview.sh`,
-        //swapfile
-        "fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile",
-        "echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab",
-        "sysctl vm.swappiness=10 && sysctl vm.vfs_cache_pressure=50",
-        "echo 'vm.swappiness=10' | tee -a /etc/sysctl.conf",
-        "echo 'vm.vfs_cache_pressure=50' | tee -a /etc/sysctl.conf",
-        //install docker
-        "yum install -y docker",
-        "sudo systemctl start docker",
-        //clean up stale images
+        `#!/bin/bash
+        yum install -y docker`,
+        "usermod -aG docker ec2-user",
+        "service docker start",
         "echo 'docker image prune -a --filter=\"until=96h\" --force' > /etc/cron.daily/docker-prune && chmod a+x /etc/cron.daily/docker-prune",
-        //set is ready state
         "mkdir -p /etc/prbranch && touch /etc/prbranch/ready && chown -R ec2-user:ec2-user /etc/prbranch",
       ].join(" && ");
 
-      //create same instance
-      await this.client.send(
-        this.cmd.runInstance({
-          MaxCount: 1,
-          MinCount: 1,
-          //todo
-          UserData: btoa(userData),
-          ImageId: "ami-02f3f602d23f1659d",
-          InstanceType: "t2.micro",
-          TagSpecifications: [
-            {
-              ResourceType: "instance",
-              Tags: [
-                {
-                  Key: "Name",
-                  Value: instanceConfig.name,
-                },
-              ],
-            },
-          ],
+      const bufferString = Buffer.from(userData).toString("base64");
+
+      await this.client
+        .send(
+          this.cmd.runInstance({
+            MaxCount: 1,
+            MinCount: 1,
+            UserData: bufferString,
+            ImageId: "ami-02f3f602d23f1659d",
+            InstanceType: "t2.micro",
+            SecurityGroupIds: ["sg-094c1c2ff2866aeb1"],
+            SecurityGroups: ["new_SG_test"],
+            KeyName: "test-instance",
+            TagSpecifications: [
+              {
+                ResourceType: "instance",
+                Tags: [
+                  {
+                    Key: "Name",
+                    Value: instanceConfig.name,
+                  },
+                ],
+              },
+            ],
+          })
+        )
+        .then((instance) => {
+          console.log(
+            `instance launched with id ${instance.Instances?.at(0)?.InstanceId}`
+          );
+          this.launchedInstanceId =
+            instance.Instances?.at(0)?.InstanceId || null;
+
+          return instance.Instances?.at(0)?.InstanceId;
         })
-      );
+        .catch((e) => {
+          throw e;
+        });
     } catch (error) {
       throw new Error(`${instanceConfig.name} lunch error`, { cause: error });
     }
   }
 
+  async waitUntilInstance() {
+    const instanceName = this.instanceName;
+    if (
+      instanceName &&
+      (await polling({
+        cb: async () => await this.isRunning(instanceName),
+      }))
+    ) {
+      return true;
+    } else if (!instanceName) {
+      throw new Error("Instance Name not found");
+    }
+    throw new Error("Instance timeout aborting instance creation");
+  }
+
+  async verifySshConnection() {
+    await this.ssh(`test -f ${this.semaphore}`);
+  }
+
+  private async scp(cmd: string) {}
+
+  private async ssh(cmd: string) {
+    const publicDns = this.publicDns;
+    const privateKey = this.privateKey;
+    // const sshAddress = `${this.instanceName}@${this.publicDns}`;
+    const sshAddress = `ec2-user@${this.publicDns}`;
+
+    // console.log({ privateKey });
+    // //@todo create common file
+    const tempPrivateKey = join(process.cwd(), "../../tmp/private");
+
+    if (!existsSync(tempPrivateKey)) {
+      writeFileSync(tempPrivateKey, privateKey, { mode: 0o600 });
+      console.log(`Private key saved to ${tempPrivateKey}`);
+    }
+
+    if (publicDns)
+      await $`ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd}`
+        .then((_) => {
+          console.log(
+            `successfully ran this cmd $ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd}`
+          );
+        })
+        .catch((e) => {
+          throw new Error("Error while logging the cmd", { cause: e });
+        });
+  }
+
   private async isRunning(name: string) {
     let isRunning = false;
+    const instanceId = this.launchedInstanceId;
     try {
-      await this.getInstanceInfo(name)
+      if (!instanceId)
+        throw new Error("Can not check running status without instanceId");
+      await this.getInstanceInfoById(instanceId, name)
         .then((res) => {
-          res.Reservations?.map((reserve) => {
-            reserve.Instances?.filter((ins) => {
-              if (ins.State?.Name && this.liveInstanceState(ins.State?.Name)) {
-                console.log({ ins, instatantState: ins.State });
-                isRunning = true;
-                return;
-              }
-            });
+          console.log(`checking is running ${res.$metadata.attempts}`);
+          const instance = res.Reservations?.at(0);
+          instance?.Instances?.forEach((inst) => {
+            console.log(`instance name ${inst.Tags?.at(0)?.Value}`);
+            console.log(`instance state ${inst?.State?.Name}`);
+            if (
+              inst?.State?.Name &&
+              this.liveInstanceState(inst?.State?.Name)
+            ) {
+              isRunning = true;
+            }
           });
         })
         .catch((e) => {
@@ -123,16 +201,13 @@ export class Instance implements IInstance {
   }
 
   private liveInstanceState = (state: string | InstanceStateName) =>
-    [
-      InstanceStateName.pending,
-      InstanceStateName.running,
-      InstanceStateName.stopping,
-    ].includes(state as InstanceStateName);
+    [InstanceStateName.running].includes(state as InstanceStateName);
 
-  private async getInstanceInfo(name: string) {
+  private async getInstanceInfoById(id: string, name: string) {
     return await this.client
       .send(
         this.cmd.describeInstance({
+          InstanceIds: [id],
           Filters: [
             {
               Name: "tag:Name",

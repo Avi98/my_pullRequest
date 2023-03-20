@@ -4,6 +4,7 @@ import { createReadStream, createWriteStream, existsSync } from "fs";
 import { join } from "path";
 import { createGzip } from "zlib";
 import { Instance } from "../instance";
+import { env } from "../utils/env";
 
 const config = {
   //   localTempPath: "/tmp/app",
@@ -25,13 +26,32 @@ export class LunchServer {
       await this.cloneRepo(git);
       await this.compressRepo(config.localTempPath);
 
-      //launch instance
-      this.instance.launch({
+      // launch instance
+      await this.instance.launch({
         appPath: "etc/pr",
         name: "tobechange",
-        sshPublicKey:
-          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDT4ACnHtnXKv2ICo6SihQtgHQWcoh5djznb1QWCULzrJ0qzEXcBE+LEqeJUs1upuAh9NAO1mbfhmzp7VneXyWUcepd3YAgCAEIsvsyjjsVRVXR1UO8lR4g2r2ZCpYIKxorq3mLj2IDZq7NdnO/fO7vffKRWwm/lz1N73YcQDhlOBw94LbJWLjo7gL7txVU/Um90JVT/syPKkVzam4QIIzSdx9hePXxjZLrGkevMryH5JWWwhnZ7ny/Qg/nQHmdWtsczj1IHErkNUHYn1arQ8JRUilV/9/ki+6qhBH5xXMTDpp5EqS+PWFHFHh8VATfx0MVj+SpWzVDnczNxMRGxmAMhj3R61veefnwhmxdtl0euXYPSbwCqeCduztkOmnQp6cPMZ8Dqxvw2esWhpIeW86cu0Yze9u1UZfjIxCG4YgW476ivTDrWKxbrLpG291e01xvut6nZ8dQMr9fRE2uWMamMqJ0tg4EI66leFDakbXwr2joiB/dRWGd73yWdrRxJ20= avinash@Avinashs-MacBook-Pro.local",
+        sshPublicKey: env.sshKeys.publicKey,
       });
+
+      await Promise.resolve(
+        setTimeout(() => {
+          console.log("waiting for 2ms");
+        }, 2000)
+      );
+      await this.instance.waitUntilInstance();
+      await this.instance.verifySshConnection();
+      // await this.instance.waitForSsh();
+
+      /**
+       * 1. scp repo to server
+       * 2. build docker
+       * 3. run docker image
+       * 4. expose end point
+       *
+       * todo add destroy method
+       * todo add kill method
+       *
+       */
     } catch (error) {
       console.error(error);
     }
