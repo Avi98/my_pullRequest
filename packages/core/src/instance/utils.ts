@@ -11,7 +11,20 @@ export const polling = async ({
   let result = true;
   let retires = 0;
 
-  while (!(await cb?.())) {
+  const callAgain = () =>
+    maxRetries === retires
+      ? cb?.()
+          .then((res) => {
+            console.log("polling successfully ✅ ");
+            return res;
+          })
+          .catch((e) => {
+            throw e;
+          })
+      : cb?.().catch((e) => {
+          console.error(JSON.stringify(e));
+        });
+  while (!(await callAgain())) {
     retires++;
     if (retires >= maxRetries) {
       result = false;
@@ -23,9 +36,10 @@ export const polling = async ({
 };
 
 export const sleep = (timeout = 2) => {
+  console.log(`sleep for ${timeout}s`);
   return new Promise((res) =>
     setTimeout(() => {
-      res(console.log(`sleep for ${timeout}s`));
+      res("");
     }, 1000 * timeout)
   );
 };

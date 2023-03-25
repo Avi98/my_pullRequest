@@ -8,9 +8,10 @@ import { polling, sleep } from "../instance/utils";
 import { env } from "../utils/env";
 
 const config = {
-  //   localTempPath: "/tmp/app",
+  serverAppPath: "/etc/prbranch",
   localTempPath: join(process.cwd(), "../../tmp"),
   keyName: "my-proto-type-keyPair",
+  tarballFile: "app.tar.gz",
 };
 export class LunchServer {
   instance: Instance;
@@ -19,56 +20,80 @@ export class LunchServer {
     this.instance = ec2;
   }
 
-  async run(appPaths: string[] | string) {
+  async run(cloneLink: string) {
     try {
-      const dockerfilePaths =
-        typeof appPaths === "string" ? [appPaths] : appPaths;
-      const git = this.getGitUrl(dockerfilePaths[0]);
+      const dockerfilePaths = cloneLink;
+      const tmpAppPath = `${config.localTempPath}/${config.tarballFile}`;
+      const git = this.getGitUrl(dockerfilePaths);
       await this.cloneRepo(git);
       await this.compressRepo(config.localTempPath);
 
       // launch instance
       await this.instance.launch({
-        appPath: "etc/pr",
         name: "tobechange",
         sshPublicKey: env.sshKeys.publicKey,
       });
 
-      await sleep(2);
+      await sleep(20);
 
-      await this.instance
-        .waitUntilInstance()
-        .then(async () => {
-          //instance after starting tasks some time to start sshd
-          await polling({
-            maxRetries: 3,
-            cb: () => this.instance.verifySshConnection(),
+      try {
+        await this.instance
+          .waitUntilInstance()
+          .then(async () => {
+            //instance after starting tasks some time to start sshd
+            await sleep(20);
+            try {
+              await polling({
+                maxRetries: 3,
+                cb: () => this.instance.verifySshConnection(),
+              });
+              console.log("\n SSH connection established 🎉 \n");
+            } catch (error) {
+              throw error;
+            }
+          })
+          .catch((e) => {
+            throw new Error("SSH connection failed aborting... ");
           });
-        })
-        .catch((e) => {
-          console.error(e);
-        });
 
-      /**
-       * scp tar files
-       * extract cpy
-       * create new docker image
-       */
+        await sleep(10);
+        await this.instance
+          .createDockerImage(
+            tmpAppPath,
+            config.serverAppPath,
+            config.tarballFile
+          )
+          .then((isSuccess) => Boolean(isSuccess));
+
+        await Promise.all([
+          // this.instance.moveStartScripts(tmpAppPath),
+        ]);
+      } catch (error) {
+        // throw Error("Docker image creation failed aborting...", {
+        //   cause: error,
+        // });
+        console.error(error);
+      }
     } catch (error) {
-      console.error(error);
+      throw error;
     }
   }
 
   private async cloneRepo(git: { url: string; branch: string }) {
     await this.removeTempAppDir();
     try {
-      const repo = await execa("git", [
-        "clone",
-        git.url,
-        "--depth=1",
-        `--branch=${git.branch}`,
-        config.localTempPath,
-      ]);
+      console.log("cloning new dir");
+      const repo = await execa(
+        "git",
+        [
+          "clone",
+          git.url,
+          "--depth=1",
+          `--branch=${git.branch}`,
+          config.localTempPath,
+        ],
+        { verbose: true }
+      );
       return repo;
     } catch (error) {
       throw new Error("Can not clone error", { cause: error });
@@ -76,23 +101,33 @@ export class LunchServer {
   }
 
   private async compressRepo(repoPath: string) {
+    console.log("Compressing new dir");
+
     await execa("tar", [
       "cfz",
-      `${repoPath}/app.tar.gz`,
+      `${repoPath}/${config.tarballFile}`,
       "--exclude",
       ".git",
       "-C",
       repoPath,
       ".",
-    ]).on("exit", (code) => {
-      if (code !== 0) {
-        throw new Error("Failed to compress repo");
-      }
-    });
+    ])
+      .then(() => console.log("compress and saved file"))
+      .catch((e) => {
+        throw new Error("File compress failed");
+      });
   }
   private async removeTempAppDir() {
     if (existsSync(config.localTempPath)) {
-      await execa("rm", ["-rf", config.localTempPath]);
+      await execa("rm", ["-rf", config.localTempPath])
+        .then(() => {
+          console.log(`${config.localTempPath} removed`);
+        })
+        .catch(() => {
+          throw new Error("Failed to remove dir");
+        });
+    } else {
+      console.log("temp not found");
     }
   }
 
