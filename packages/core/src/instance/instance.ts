@@ -8,7 +8,7 @@ import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { env } from "../utils/env";
 import { InstanceCmdFactories } from "./instanceFactories";
-import { polling } from "./utils";
+import { polling, sleep } from "./utils";
 
 type InstanceConfigType = {
   region?: string;
@@ -88,6 +88,8 @@ export class Instance implements IInstance {
       const userData = [
         `#!/bin/bash
         yum install -y docker`,
+        // "yum install -y nodejs",
+        // "npm install -g yarn",
         "usermod -aG docker ec2-user",
         "service docker start",
         "echo 'docker image prune -a --filter=\"until=96h\" --force' > /etc/cron.daily/docker-prune && chmod a+x /etc/cron.daily/docker-prune",
@@ -157,15 +159,16 @@ export class Instance implements IInstance {
       throw new Error("Source or Server path for app not provided");
 
     try {
-      const isSuccesfull = await this.scp({
+      await this.scp({
         source: sourcePath,
         target: serverAppPath,
         fileName: fileName,
         mode: "0600",
       });
-      return isSuccesfull;
+
+      sleep(2);
       const tarFileName = sourcePath.split("/").reverse().at(0);
-      // await this.ssh(`cd ${serverAppPath} && tar -xvf ${tarFileName}`);
+      await this.ssh(`cd ${serverAppPath} && tar -xvf ${tarFileName}`);
       // await this.ssh(`docker build -f  `)
     } catch (error) {
       throw error;
@@ -262,7 +265,7 @@ export class Instance implements IInstance {
       writeFileSync(tempPrivateKey, privateKey, { mode: "0600" });
       console.log(`Private key saved to ${tempPrivateKey}`);
     }
-    const cmdToRun = `ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd}`;
+    const cmdToRun = `ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
 
     const cpyFile = `cat ${file} | ${cmdToRun}`;
     console.log(`\n running cmd..`);
@@ -275,10 +278,12 @@ export class Instance implements IInstance {
         })
         .catch((e) => {
           console.error(e);
-          throw new Error("Error while logging the cmd ", { cause: e });
+          throw new Error("Error while logging the cmd with file ", {
+            cause: e,
+          });
         });
     } else {
-      return await $({ verbose: true })`${cmdToRun}`
+      return await $({ verbose: true, shell: true })`${cmdToRun}`
         .then((_) => {
           console.log(`\n successfully ran this cmd ${cmdToRun} \n`);
         })

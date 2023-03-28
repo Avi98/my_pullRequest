@@ -34,14 +34,14 @@ export class LunchServer {
         sshPublicKey: env.sshKeys.publicKey,
       });
 
-      await sleep(20);
+      await sleep(10);
 
       try {
         await this.instance
           .waitUntilInstance()
           .then(async () => {
             //instance after starting tasks some time to start sshd
-            await sleep(20);
+            await sleep(10);
             try {
               await polling({
                 maxRetries: 3,
@@ -63,7 +63,12 @@ export class LunchServer {
             config.serverAppPath,
             config.tarballFile
           )
-          .then((isSuccess) => Boolean(isSuccess));
+          // .then(async () => {
+          //   await this.removeTempAppDir();
+          // })
+          .catch((e) => {
+            throw e;
+          });
 
         await Promise.all([
           // this.instance.moveStartScripts(tmpAppPath),
@@ -142,7 +147,7 @@ export class LunchServer {
     if (!hasHttpRegEx.test(appPath))
       throw new Error("APP_PATH should be git clone path");
 
-    const [gitUrl, ref = "main"] = appPath.split("#", 2);
+    const [gitUrl, ref = "develop"] = appPath.split("#", 2);
     return { url: gitUrl, branch: ref };
   }
 }

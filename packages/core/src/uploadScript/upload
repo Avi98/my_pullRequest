@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -eou pipefail
+
+app_dir = /etc/prbranch
+tarball_name = app.tar.gz
+tarball_path = "/etc/prbranch/app.tar.gz"
+docker_file = /etc/Dockerfile
+
+lock_file = "/tmp/add.lock"
+removeLock(){
+	rm -f "$lock_file";
+	rm -f "$tarball_path"
+}
+
+tarp removeLock EXIT SIGINT TERM
+
+if [-f "$lock_file"]; then
+
+echo "Found a lock file. waiting"
+
+for
+# check for semaphore lock.file
+# if there wait for 20 min
+# set new lock.file
+
+# create new docker build
