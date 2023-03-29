@@ -1,5 +1,10 @@
 ## AWS settings
 
+### AWS credentials
+
+need to set AWS_USERNAME
+need to set AWS_PASSWORD
+
 ### AWS IAM policy
 
 IAM account should have a policy and permission for EC2 instance.
