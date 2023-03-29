@@ -3,9 +3,10 @@
 set -eou pipefail
 
 app_dir = /etc/prbranch
-tarball_name = app.tar.gz
 tarball_path = "/etc/prbranch/app.tar.gz"
-docker_file = /etc/Dockerfile
+docker_file = Dockerfile
+docker_port = 3000
+expose_port = 3000
 
 lock_file = "/tmp/add.lock"
 removeLock(){
@@ -15,13 +16,68 @@ removeLock(){
 
 tarp removeLock EXIT SIGINT TERM
 
-if [-f "$lock_file"]; then
+if [-f "$lock_file"] 
+then
+		echo "Curretly running previous opretaions."
+		for i in {1...240};do
+		sleep 5
+			if [!-f "$lock_file"]; then
+			 break
+			fi
+		echo "Waiting ...."
+		done
+fi
 
-echo "Found a lock file. waiting"
+# setting new lock file
+exec 100>$lock_file || exit 1
+echo -n "Locking the file"
+flock -n 100 || exit 1
+echo "ok"
 
-for
-# check for semaphore lock.file
-# if there wait for 20 min
-# set new lock.file
+sudo chown -R ec2-user.ec2-user "$(dirname $app_dir)"
 
-# create new docker build
+# get arguments from the shell script
+while getopts "app_dir:dockerfile:docker_file:port:expose_port" opt; do
+	case $opt in
+
+		app_dir)
+			app_dir=${OPTARG};;	
+		tarball)
+			tarball_path=${OPTARG};;	
+		dockerfile)
+			docker_file=${OPTARG};;	
+		docker_port)
+			docker_port=${OPTARG};;	
+		expose_port)
+			expose_port=${OPTARG};;	
+	esac
+done
+
+echo "app_dir: $app_dir";
+echo "tarball_path: $tarball_path";
+echo "docker_file: $docker_file";
+echo "docker_port: $docker_port";
+echo "expose_port: $expose_port";
+
+# is first run
+if [-f "$app_dir"]; then
+ IS_FIRST_RUN = false
+ rm -f "$ENV_FILE"
+else 
+ IS_FIRST_RUN = true
+fi
+
+# extract file
+# remove tarball
+tar -xvf "$tarball_path"
+rm "$tarball_path"
+
+# build docker images
+# run docker image
+# remove lock file
+if docker build -f "$docker_file" -t "$docker_tag" .; then
+	docker run -p "$expose_port":"$docker_port" "$docker_tag"
+else 
+	echo "failed to build docker image"
+fi
+
