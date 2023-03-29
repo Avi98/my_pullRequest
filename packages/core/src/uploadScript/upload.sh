@@ -2,26 +2,26 @@
 
 set -eou pipefail
 
-app_dir = /etc/prbranch
-tarball_path = "/etc/prbranch/app.tar.gz"
-docker_file = Dockerfile
-docker_port = 3000
-expose_port = 3000
+app_dir="/etc/prbranch"
+tarball_path="/etc/prbranch/app.tar.gz"
+docker_file="Dockerfile"
+docker_port="3000"
+expose_port="3000"
 
-lock_file = "/tmp/add.lock"
+lock_file="add.lock"
+
 removeLock(){
 	rm -f "$lock_file";
 	rm -f "$tarball_path"
 }
 
-tarp removeLock EXIT SIGINT TERM
+trap removeLock EXIT INT TERM
 
-if [-f "$lock_file"] 
-then
+if [ -f "$lock_file" ]; then
 		echo "Curretly running previous opretaions."
 		for i in {1...240};do
 		sleep 5
-			if [!-f "$lock_file"]; then
+			if [ ! -f "$lock_file" ]; then
 			 break
 			fi
 		echo "Waiting ...."
@@ -37,20 +37,21 @@ echo "ok"
 sudo chown -R ec2-user.ec2-user "$(dirname $app_dir)"
 
 # get arguments from the shell script
-while getopts "app_dir:dockerfile:docker_file:port:expose_port" opt; do
+while getopts "a:t:d:f:p:e:t" opt; do
 	case $opt in
-
-		app_dir)
+		a)
 			app_dir=${OPTARG};;	
-		tarball)
+		t)
 			tarball_path=${OPTARG};;	
-		dockerfile)
+		d)
 			docker_file=${OPTARG};;	
-		docker_port)
+		p)
 			docker_port=${OPTARG};;	
-		expose_port)
-			expose_port=${OPTARG};;	
-	esac
+		e)
+			expose_port=${OPTARG};;
+
+		t) 	docker_tag=${OPTARG};;
+esac
 done
 
 echo "app_dir: $app_dir";
@@ -61,10 +62,10 @@ echo "expose_port: $expose_port";
 
 # is first run
 if [-f "$app_dir"]; then
- IS_FIRST_RUN = false
+ IS_FIRST_RUN=false
  rm -f "$ENV_FILE"
 else 
- IS_FIRST_RUN = true
+ IS_FIRST_RUN=true
 fi
 
 # extract file
