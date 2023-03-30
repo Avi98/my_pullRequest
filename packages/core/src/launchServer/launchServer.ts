@@ -56,23 +56,13 @@ export class LunchServer {
             throw new Error("SSH connection failed aborting... ");
           });
 
-        await sleep(10);
-        await this.instance
-          .createDockerImage(
-            tmpAppPath,
-            config.serverAppPath,
-            config.tarballFile
-          )
-          // .then(async () => {
-          //   await this.removeTempAppDir();
-          // })
-          .catch((e) => {
-            throw e;
-          });
+        await sleep(5);
+        await this.instance.cpyTarOnInstance(
+          `${config.localTempPath}/${config.tarballFile}`,
+          config.serverAppPath
+        );
 
-        await Promise.all([
-          // this.instance.moveStartScripts(tmpAppPath),
-        ]);
+        await this.instance.setUpStartUpScript();
       } catch (error) {
         // throw Error("Docker image creation failed aborting...", {
         //   cause: error,

@@ -1,31 +1,8 @@
-#!/bin/bash
-
-set -eou pipefail
-
-app_dir="/etc/prbranch"
-tarball_path="/etc/prbranch/app.tar.gz"
-docker_file="Dockerfile"
-docker_port="3000"
-expose_port="3000"
-
-lock_file="add.lock"
-
-removeLock(){
-	rm -f "$lock_file";
-	rm -f "$tarball_path"
-}
-
-trap removeLock EXIT INT TERM
-
-if [ -f "$lock_file" ]; then
-		echo "Curretly running previous opretaions."
-		for i in {1...240};do
-		sleep 5
-			if [ ! -f "$lock_file" ]; then
-			 break
-			fi
-		echo "Waiting ...."
-		done
+                        if [ ! -f "$lock_file" ]; then
+                         break
+                        fi
+                echo "Waiting ...."
+                done
 fi
 
 # setting new lock file
@@ -37,20 +14,20 @@ echo "ok"
 sudo chown -R ec2-user.ec2-user "$(dirname $app_dir)"
 
 # get arguments from the shell script
-while getopts "a:t:d:f:p:e:t" opt; do
-	case $opt in
-		a)
-			app_dir=${OPTARG};;	
-		t)
-			tarball_path=${OPTARG};;	
-		d)
-			docker_file=${OPTARG};;	
-		p)
-			docker_port=${OPTARG};;	
-		e)
-			expose_port=${OPTARG};;
-
-		t) 	docker_tag=${OPTARG};;
+while getopts "a:g:t:d:f:p:e" opt; do
+        case $opt in
+                a)
+                        app_dir=${OPTARG};;
+                t)
+                        tarball_path=${OPTARG};;
+                d)
+                        docker_file=${OPTARG};;
+                p)
+                        docker_port=${OPTARG};;
+                e)
+                        expose_port=${OPTARG};;
+                g)
+                        docker_tag=${OPTARG};;
 esac
 done
 
@@ -61,10 +38,10 @@ echo "docker_port: $docker_port";
 echo "expose_port: $expose_port";
 
 # is first run
-if [-f "$app_dir"]; then
+if [ -f "$app_dir" ]; then
  IS_FIRST_RUN=false
  rm -f "$ENV_FILE"
-else 
+else
  IS_FIRST_RUN=true
 fi
 
@@ -77,8 +54,7 @@ rm "$tarball_path"
 # run docker image
 # remove lock file
 if docker build -f "$docker_file" -t "$docker_tag" .; then
-	docker run -p "$expose_port":"$docker_port" "$docker_tag"
-else 
-	echo "failed to build docker image"
+        docker run -d -p "$expose_port":"$docker_port" "$docker_tag" 
+else
+        echo "failed to build docker image"
 fi
-

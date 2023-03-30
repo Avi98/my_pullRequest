@@ -144,41 +144,6 @@ export class Instance implements IInstance {
     }
   }
 
-  async createDockerImage(
-    sourcePath: string,
-    serverAppPath: string,
-    fileName: string
-  ) {
-    //scp tmp files to /tmp/app
-    //extract tmp files
-    //create docker image
-    // to run need to have bash script in instance and start it
-    //run docker image
-
-    if (!sourcePath && !serverAppPath)
-      throw new Error("Source or Server path for app not provided");
-
-    try {
-      await this.scp({
-        source: sourcePath,
-        target: serverAppPath,
-        fileName: fileName,
-        mode: "0600",
-      });
-
-      sleep(2);
-      const tarFileName = sourcePath.split("/").reverse().at(0);
-      await this.ssh(`cd ${serverAppPath} && tar -xvf ${tarFileName}`);
-      // await this.ssh(`docker build -f  `)
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async moveStartScripts(sourcePath: string) {
-    //
-    return true;
-  }
   async waitUntilInstance() {
     const instanceName = this.instanceName;
     if (
@@ -206,6 +171,48 @@ export class Instance implements IInstance {
     return sshConnected;
   };
 
+  async cpyTarOnInstance(sourcePath: string, serverAppPath: string) {
+    //scp tmp files to /tmp/app
+
+    if (!sourcePath && !serverAppPath)
+      throw new Error("Source or Server path for app not provided");
+
+    try {
+      console.log("cpy....");
+      await this.scp({
+        source: sourcePath,
+        target: serverAppPath,
+        mode: "0600",
+      });
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+  async setUpStartUpScript() {
+    try {
+      const currentDir = process.cwd();
+      const startScript = join(currentDir, "../uploadScript/upload.sh");
+      await this.scp({ source: startScript, target: "/etc" });
+    } catch (error) {
+      throw new Error("Failed to cpy startUp script to instance", {
+        cause: error,
+      });
+    }
+  }
+
+  async runStart(args: Record<string, string>) {
+    try {
+      const startup = "/etc/upload.sh";
+      await this.ssh(`${startup} ${this.getArgs(args)}`);
+    } catch (error) {}
+  }
+
+  private getArgs(args: Record<string, string>) {
+    return Object.entries(args)
+      .map(([argKey, param]) => `--${argKey} ${param}`)
+      .join(" ");
+  }
   private async scp({
     source,
     target,
@@ -214,7 +221,7 @@ export class Instance implements IInstance {
   }: {
     source: string;
     target: string;
-    fileName: string;
+    fileName?: string;
     mode?: string;
   }) {
     const host = this.publicDns;
@@ -232,6 +239,8 @@ export class Instance implements IInstance {
         "ServerAliveInterval=15",
         "-o",
         "LogLevel=ERROR",
+        // "chmod",
+        // `${mode}`,
         `-i`,
         `${tempPrivateKey}`,
         `${source}`,
@@ -250,7 +259,7 @@ export class Instance implements IInstance {
         if (res.exitCode === 0) console.log("done writing the files ✅");
       })
       .catch((e) => {
-        return false;
+        throw e;
       });
   }
 
