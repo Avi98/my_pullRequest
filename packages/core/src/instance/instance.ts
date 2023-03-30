@@ -4,11 +4,11 @@ import {
   InstanceStateName,
 } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
-import { existsSync, writeFileSync, writeSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { env } from "../utils/env";
 import { InstanceCmdFactories } from "./instanceFactories";
-import { polling } from "./utils";
+import { polling, sleep } from "./utils";
 
 type InstanceConfigType = {
   region?: string;
@@ -88,6 +88,8 @@ export class Instance implements IInstance {
       const userData = [
         `#!/bin/bash
         yum install -y docker`,
+        // "yum install -y nodejs",
+        // "npm install -g yarn",
         "usermod -aG docker ec2-user",
         "service docker start",
         "echo 'docker image prune -a --filter=\"until=96h\" --force' > /etc/cron.daily/docker-prune && chmod a+x /etc/cron.daily/docker-prune",
@@ -142,41 +144,6 @@ export class Instance implements IInstance {
     }
   }
 
-  async createDockerImage(
-    sourcePath: string,
-    serverAppPath: string,
-    fileName: string
-  ) {
-    //scp tmp files to /tmp/app
-    //extract tmp files
-    //create docker image
-    // to run need to have bash script in instance and start it
-    //run docker image
-
-    if (!sourcePath && !serverAppPath)
-      throw new Error("Source or Server path for app not provided");
-
-    try {
-      const isSuccesfull = await this.scp({
-        source: sourcePath,
-        target: serverAppPath,
-        fileName: fileName,
-        mode: "0600",
-      });
-      return isSuccesfull;
-      const tarFileName = sourcePath.split("/").reverse().at(0);
-      // await this.ssh(`cd ${serverAppPath} && tar -xvf ${tarFileName}`);
-      // await this.ssh(`docker build -f  `)
-    } catch (error) {
-      return false;
-      throw error;
-    }
-  }
-
-  async moveStartScripts(sourcePath: string) {
-    //
-    return true;
-  }
   async waitUntilInstance() {
     const instanceName = this.instanceName;
     if (
@@ -204,6 +171,48 @@ export class Instance implements IInstance {
     return sshConnected;
   };
 
+  async cpyTarOnInstance(sourcePath: string, serverAppPath: string) {
+    //scp tmp files to /tmp/app
+
+    if (!sourcePath && !serverAppPath)
+      throw new Error("Source or Server path for app not provided");
+
+    try {
+      console.log("cpy....");
+      await this.scp({
+        source: sourcePath,
+        target: serverAppPath,
+        mode: "0600",
+      });
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  }
+  async setUpStartUpScript() {
+    try {
+      const currentDir = process.cwd();
+      const startScript = join(currentDir, "../uploadScript/upload.sh");
+      await this.scp({ source: startScript, target: "/etc" });
+    } catch (error) {
+      throw new Error("Failed to cpy startUp script to instance", {
+        cause: error,
+      });
+    }
+  }
+
+  async runStart(args: Record<string, string>) {
+    try {
+      const startup = "/etc/upload.sh";
+      await this.ssh(`${startup} ${this.getArgs(args)}`);
+    } catch (error) {}
+  }
+
+  private getArgs(args: Record<string, string>) {
+    return Object.entries(args)
+      .map(([argKey, param]) => `--${argKey} ${param}`)
+      .join(" ");
+  }
   private async scp({
     source,
     target,
@@ -212,32 +221,26 @@ export class Instance implements IInstance {
   }: {
     source: string;
     target: string;
-    fileName: string;
+    fileName?: string;
     mode?: string;
   }) {
     const host = this.publicDns;
-    const privateKey = this.privateKey;
     const remoteUser = "ec2-user";
     const tempPrivateKey = join(process.cwd(), "../../tmp/private");
-
-    // if (!existsSync(tempPrivateKey)) {
-    writeFileSync(tempPrivateKey, privateKey, { mode: "0600" });
-    console.log(`Private key saved to ${tempPrivateKey}`);
-    // }
-
-    // const cmd = `scp -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o ConnectTimeout=100 -i ${tempPrivateKey} ${source} ${remoteUser}@${host}:${target}`;
-    if (!host) return;
-    await execa("ls", ["-l", tempPrivateKey], { verbose: true }).then(
-      (data) => {
-        console.log({ data });
-      }
-    );
-
+    console.log("Starting to cpy files to server 📁 ---> 📂");
     await execa(
       "scp",
       [
-        "-v",
-        "-o StrictHostKeyChecking=no",
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-o",
+        "ServerAliveInterval=15",
+        "-o",
+        "LogLevel=ERROR",
+        // "chmod",
+        // `${mode}`,
         `-i`,
         `${tempPrivateKey}`,
         `${source}`,
@@ -249,14 +252,14 @@ export class Instance implements IInstance {
           NODE_DEBUG: "child_process",
         },
         verbose: true,
+        shell: true,
       }
     )
       .then((res) => {
-        return true;
+        if (res.exitCode === 0) console.log("done writing the files ✅");
       })
       .catch((e) => {
-        console.error(e);
-        return false;
+        throw e;
       });
   }
 
@@ -271,7 +274,7 @@ export class Instance implements IInstance {
       writeFileSync(tempPrivateKey, privateKey, { mode: "0600" });
       console.log(`Private key saved to ${tempPrivateKey}`);
     }
-    const cmdToRun = `ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i ${tempPrivateKey} ${sshAddress} ${cmd}`;
+    const cmdToRun = `ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
 
     const cpyFile = `cat ${file} | ${cmdToRun}`;
     console.log(`\n running cmd..`);
@@ -284,10 +287,12 @@ export class Instance implements IInstance {
         })
         .catch((e) => {
           console.error(e);
-          throw new Error("Error while logging the cmd ", { cause: e });
+          throw new Error("Error while logging the cmd with file ", {
+            cause: e,
+          });
         });
     } else {
-      return await $({ verbose: true })`${cmdToRun}`
+      return await $({ verbose: true, shell: true })`${cmdToRun}`
         .then((_) => {
           console.log(`\n successfully ran this cmd ${cmdToRun} \n`);
         })
