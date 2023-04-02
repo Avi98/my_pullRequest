@@ -8,7 +8,7 @@ import { polling, sleep } from "../instance/utils";
 import { env } from "../utils/env";
 
 const config = {
-  serverAppPath: "/etc/prbranch",
+  serverAppPath: "/etc/prbranch/app/app.tar.gz",
   localTempPath: join(process.cwd(), "../../tmp"),
   keyName: "my-proto-type-keyPair",
   tarballFile: "app.tar.gz",
@@ -55,6 +55,9 @@ export class LunchServer {
           .catch((e) => {
             throw new Error("SSH connection failed aborting... ");
           });
+
+        // already running instance should, start from snap shot instance
+        // await this.instance.cleanDockerImgs();
 
         await sleep(5);
         await this.instance.cpyTarOnInstance(

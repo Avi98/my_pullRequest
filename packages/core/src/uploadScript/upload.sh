@@ -1,3 +1,26 @@
+#!/bin/bash
+
+set -eou pipefail
+
+app_dir="/etc/prbranch"
+tarball_path="/etc/prbranch/app/app.tar.gz"
+docker_file="Dockerfile"
+docker_port="3000"
+expose_port="3000"
+
+lock_file="add.lock"
+
+removeLock(){
+	rm -f "$lock_file";
+	rm -f "$tarball_path"
+}
+
+trap removeLock EXIT INT TERM
+
+if [ -f "$lock_file" ]; then
+		echo "Curretly running previous opretaions."
+		for i in {1...240};do
+		sleep 5
                         if [ ! -f "$lock_file" ]; then
                          break
                         fi
@@ -11,7 +34,7 @@ echo -n "Locking the file"
 flock -n 100 || exit 1
 echo "ok"
 
-sudo chown -R ec2-user.ec2-user "$(dirname $app_dir)"
+# sudo chown -R ec2-user.ec2-user "$(dirname $app_dir)"
 
 # get arguments from the shell script
 while getopts "a:g:t:d:f:p:e" opt; do
@@ -40,7 +63,6 @@ echo "expose_port: $expose_port";
 # is first run
 if [ -f "$app_dir" ]; then
  IS_FIRST_RUN=false
- rm -f "$ENV_FILE"
 else
  IS_FIRST_RUN=true
 fi
