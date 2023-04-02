@@ -11,6 +11,8 @@ import {
   EC2ClientConfig,
   DescribeInstanceStatusCommandInput,
   DescribeInstanceStatusCommand,
+  DescribeSnapshotsCommand,
+  DescribeSnapshotsCommandInput,
 } from "@aws-sdk/client-ec2";
 
 export class InstanceCmdFactories {
@@ -34,5 +36,8 @@ export class InstanceCmdFactories {
 
   static getImages(input: DescribeImagesCommandInput) {
     return new DescribeImagesCommand(input);
+  }
+  static getSnapShot(input: DescribeSnapshotsCommandInput) {
+    return new DescribeSnapshotsCommand(input);
   }
 }

@@ -56,6 +56,15 @@ export class Instance implements IInstance {
       region,
     });
   }
+  /**
+   * need to look into race conditions
+   */
+  async cleanDockerImgs() {
+    // await this.ssh("service docker start", undefined, true);
+    await this.ssh(`docker stop $(docker ps -aq)`);
+    await this.ssh(`docker rm $(docker ps -aq)`);
+    await this.ssh(`docker rmi $(docker images -q)`);
+  }
 
   /**
    * checks if the instance already exsits.
@@ -67,33 +76,33 @@ export class Instance implements IInstance {
   async launch(instanceConfig: LaunchInstanceConfig) {
     try {
       if (await this.isRunning(instanceConfig.name)) {
-        console.log({ instance: "instance already running" });
+        //clean previous running docker images
+
         await this.getInstanceInfo({
           name: instanceConfig.name,
         })
           .then((res) => {
+            //skip creating new instance
             const oldInstance = res.Reservations?.[0].Instances?.[0];
             this.initializeInstance({
               dns: oldInstance?.PublicDnsName || null,
               id: oldInstance?.InstanceId || null,
               name: instanceConfig.name || null,
             });
-            console.dir(res);
           })
           .catch((e) => console.error(e));
         // start the same instance
         return;
       }
 
+      console.log("No running instance found, creating new instance");
       const userData = [
         `#!/bin/bash
         yum install -y docker`,
-        // "yum install -y nodejs",
-        // "npm install -g yarn",
         "usermod -aG docker ec2-user",
         "service docker start",
         "echo 'docker image prune -a --filter=\"until=96h\" --force' > /etc/cron.daily/docker-prune && chmod a+x /etc/cron.daily/docker-prune",
-        "mkdir -p /etc/prbranch/ && touch /etc/prbranch/ready && chown -R ec2-user:ec2-user /etc/prbranch",
+        "mkdir -p /etc/prbranch/app && touch /etc/prbranch/ready && chown -R ec2-user:ec2-user /etc/prbranch",
       ].join(" && ");
 
       const bufferString = Buffer.from(userData).toString("base64");
@@ -189,11 +198,17 @@ export class Instance implements IInstance {
       throw e;
     }
   }
+
   async setUpStartUpScript() {
     try {
       const currentDir = process.cwd();
-      const startScript = join(currentDir, "../uploadScript/upload.sh");
-      await this.scp({ source: startScript, target: "/etc" });
+      const startScript = join(
+        currentDir,
+        "../core/src/uploadScript/upload.sh"
+      );
+      await this.scp({ source: startScript, target: "/etc/prbranch" });
+      //@TODO change the dockerimage tag based on the pullRequest and commit sha
+      await this.ssh(`cd /etc/prbranch && sh upload.sh -a /app -g pullpreview`);
     } catch (error) {
       throw new Error("Failed to cpy startUp script to instance", {
         cause: error,
@@ -201,18 +216,6 @@ export class Instance implements IInstance {
     }
   }
 
-  async runStart(args: Record<string, string>) {
-    try {
-      const startup = "/etc/upload.sh";
-      await this.ssh(`${startup} ${this.getArgs(args)}`);
-    } catch (error) {}
-  }
-
-  private getArgs(args: Record<string, string>) {
-    return Object.entries(args)
-      .map(([argKey, param]) => `--${argKey} ${param}`)
-      .join(" ");
-  }
   private async scp({
     source,
     target,
@@ -239,8 +242,7 @@ export class Instance implements IInstance {
         "ServerAliveInterval=15",
         "-o",
         "LogLevel=ERROR",
-        // "chmod",
-        // `${mode}`,
+        "-r",
         `-i`,
         `${tempPrivateKey}`,
         `${source}`,
@@ -263,7 +265,7 @@ export class Instance implements IInstance {
       });
   }
 
-  private async ssh(cmd: string, file?: string) {
+  private async ssh(cmd: string, file?: string, debug = false) {
     const publicDns = this.publicDns;
     const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
@@ -274,7 +276,9 @@ export class Instance implements IInstance {
       writeFileSync(tempPrivateKey, privateKey, { mode: "0600" });
       console.log(`Private key saved to ${tempPrivateKey}`);
     }
-    const cmdToRun = `ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
+    const cmdToRun = `ssh ${
+      debug ? "-v" : ""
+    } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
 
     const cpyFile = `cat ${file} | ${cmdToRun}`;
     console.log(`\n running cmd..`);
@@ -313,12 +317,11 @@ export class Instance implements IInstance {
     let isRunning = false;
     const instanceId = this.launchedInstanceId;
 
-    console.log("check status is running", { instanceId });
-
+    console.log(`\nInstance with instanceId:${instanceId} running\n`);
     try {
       await this.getInstanceInfo({ id: instanceId || undefined, name })
         .then((res) => {
-          console.log(`checking is running ${res.$metadata.attempts}`);
+          console.log(`checking instance ${instanceId} state`);
           const instance = res.Reservations?.at(0);
           instance?.Instances?.forEach((inst) => {
             console.log(`instance state ${inst?.State?.Name}`);
