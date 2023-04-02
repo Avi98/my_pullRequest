@@ -56,15 +56,6 @@ export class Instance implements IInstance {
       region,
     });
   }
-  /**
-   * need to look into race conditions
-   */
-  async cleanDockerImgs() {
-    // await this.ssh("service docker start", undefined, true);
-    await this.ssh(`docker stop $(docker ps -aq)`);
-    await this.ssh(`docker rm $(docker ps -aq)`);
-    await this.ssh(`docker rmi $(docker images -q)`);
-  }
 
   /**
    * checks if the instance already exsits.
@@ -81,8 +72,9 @@ export class Instance implements IInstance {
         await this.getInstanceInfo({
           name: instanceConfig.name,
         })
-          .then((res) => {
+          .then(async (res) => {
             //skip creating new instance
+            await this.stopDockerContainer();
             const oldInstance = res.Reservations?.[0].Instances?.[0];
             this.initializeInstance({
               dns: oldInstance?.PublicDnsName || null,
@@ -136,6 +128,7 @@ export class Instance implements IInstance {
           console.log(
             `instance launched with id ${instance.Instances?.at(0)?.InstanceId}`
           );
+
           const launchedInstance = instance.Instances?.at(0) || null;
           this.initializeInstance({
             dns: launchedInstance?.PublicDnsName || null,
@@ -151,6 +144,14 @@ export class Instance implements IInstance {
     } catch (error) {
       throw new Error(`${instanceConfig.name} lunch error`, { cause: error });
     }
+  }
+
+  // stop docker
+  private async stopDockerContainer() {
+    //node thinks one backslash as escape
+    await this.ssh(`docker stop \\$(docker ps -aq)`);
+    await this.ssh(`docker rm \\$(docker ps -aq)`);
+    await this.ssh(`docker rmi \\$(docker images -q)`);
   }
 
   async waitUntilInstance() {
