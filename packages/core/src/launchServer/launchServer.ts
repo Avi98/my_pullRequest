@@ -28,10 +28,21 @@ export class LunchServer {
       await this.cloneRepo(git);
       await this.compressRepo(config.localTempPath);
 
+      if (!env.securityGroup || !env.securityId || !env.keyName)
+        throw new Error(
+          "Can not launch instance without security group, and keyName"
+        );
+
       // launch instance
       await this.instance.launch({
         name: "tobechange",
         sshPublicKey: env.sshKeys.publicKey,
+        keyName: env.keyName,
+        securityGroupId: env.securityId,
+        securityGroupName: env.securityGroup,
+        imageId: env.imageId,
+        imageType: env.imageType,
+        instanceType: env.imageType,
       });
 
       await sleep(10);

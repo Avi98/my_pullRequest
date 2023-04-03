@@ -13,6 +13,8 @@ import {
   DescribeInstanceStatusCommand,
   DescribeSnapshotsCommand,
   DescribeSnapshotsCommandInput,
+  TerminateInstancesCommand,
+  TerminateInstancesCommandInput,
 } from "@aws-sdk/client-ec2";
 
 export class InstanceCmdFactories {
@@ -39,5 +41,8 @@ export class InstanceCmdFactories {
   }
   static getSnapShot(input: DescribeSnapshotsCommandInput) {
     return new DescribeSnapshotsCommand(input);
+  }
+  static deleteInstance(input: TerminateInstancesCommandInput) {
+    return new TerminateInstancesCommand(input);
   }
 }
