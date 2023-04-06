@@ -1,8 +1,4 @@
-import {
-  DescribeImagesCommand,
-  EC2Client,
-  InstanceStateName,
-} from "@aws-sdk/client-ec2";
+import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -17,9 +13,13 @@ type InstanceConfigType = {
 
 type LaunchInstanceConfig = {
   name: string;
-  amiId?: string;
   sshPublicKey: string;
   instanceType?: string;
+  imageId?: string;
+  imageType?: string;
+  securityGroupId: string;
+  securityGroupName: string;
+  keyName: string;
 };
 
 type InitializeInstance = {
@@ -56,15 +56,6 @@ export class Instance implements IInstance {
       region,
     });
   }
-  /**
-   * need to look into race conditions
-   */
-  async cleanDockerImgs() {
-    // await this.ssh("service docker start", undefined, true);
-    await this.ssh(`docker stop $(docker ps -aq)`);
-    await this.ssh(`docker rm $(docker ps -aq)`);
-    await this.ssh(`docker rmi $(docker images -q)`);
-  }
 
   /**
    * checks if the instance already exsits.
@@ -74,15 +65,24 @@ export class Instance implements IInstance {
    * @param instanceConfig
    */
   async launch(instanceConfig: LaunchInstanceConfig) {
+    const {
+      name,
+      imageId = "ami-02f3f602d23f1659d",
+      imageType = "t2.micro",
+      securityGroupId,
+      securityGroupName,
+      keyName,
+    } = instanceConfig;
     try {
-      if (await this.isRunning(instanceConfig.name)) {
+      if (await this.isRunning(name)) {
         //clean previous running docker images
 
         await this.getInstanceInfo({
           name: instanceConfig.name,
         })
-          .then((res) => {
+          .then(async (res) => {
             //skip creating new instance
+            await this.stopDockerContainer();
             const oldInstance = res.Reservations?.[0].Instances?.[0];
             this.initializeInstance({
               dns: oldInstance?.PublicDnsName || null,
@@ -114,18 +114,18 @@ export class Instance implements IInstance {
             MaxCount: 1,
             MinCount: 1,
             UserData: bufferString,
-            ImageId: "ami-02f3f602d23f1659d",
-            InstanceType: "t2.micro",
-            SecurityGroupIds: ["sg-094c1c2ff2866aeb1"],
-            SecurityGroups: ["new_SG_test"],
-            KeyName: "test-instance",
+            ImageId: imageId,
+            InstanceType: imageType,
+            SecurityGroupIds: [securityGroupId],
+            SecurityGroups: [securityGroupName],
+            KeyName: keyName,
             TagSpecifications: [
               {
                 ResourceType: "instance",
                 Tags: [
                   {
                     Key: "Name",
-                    Value: instanceConfig.name,
+                    Value: name,
                   },
                 ],
               },
@@ -136,6 +136,7 @@ export class Instance implements IInstance {
           console.log(
             `instance launched with id ${instance.Instances?.at(0)?.InstanceId}`
           );
+
           const launchedInstance = instance.Instances?.at(0) || null;
           this.initializeInstance({
             dns: launchedInstance?.PublicDnsName || null,
@@ -151,6 +152,29 @@ export class Instance implements IInstance {
     } catch (error) {
       throw new Error(`${instanceConfig.name} lunch error`, { cause: error });
     }
+  }
+
+  async deleteInstance(instanceId: string | string[]) {
+    if (!instanceId) throw new Error("Delete instance requires instance Id");
+
+    const ids = Array.isArray(instanceId) ? instanceId : [instanceId];
+    try {
+      return await this.client.send(
+        InstanceCmdFactories.deleteInstance({
+          InstanceIds: ids,
+        })
+      );
+    } catch (error) {
+      throw new Error("Unable to delete instance");
+    }
+  }
+
+  // stop docker
+  private async stopDockerContainer() {
+    //node thinks one backslash as escape
+    await this.ssh(`docker stop \\$(docker ps -aq)`);
+    await this.ssh(`docker rm \\$(docker ps -aq)`);
+    await this.ssh(`docker rmi \\$(docker images -q)`);
   }
 
   async waitUntilInstance() {

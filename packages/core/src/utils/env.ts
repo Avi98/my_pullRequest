@@ -10,6 +10,11 @@ const castEnv = <T = string>({
 };
 
 export const env = {
+  imageId: process.env.IMAGE_ID,
+  imageType: process.env.IMAGE_TYPE,
+  securityId: process.env.SG_ID,
+  securityGroup: process.env.SG,
+  keyName: process.env.KEY_NAME,
   sshKeys: {
     publicKey: castEnv({
       env: process.env.SSH_PUBLIC_KEY,
