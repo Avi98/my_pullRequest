@@ -16,9 +16,5 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "outDir": ".dist"
-  },
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
   }
 }

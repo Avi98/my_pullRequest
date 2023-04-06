@@ -17,8 +17,12 @@
     "@types/node": "^18.14.5",
     "@types/tar": "^6.1.4",
     "eslint-config-custom": "workspace:*",
+    "jest": "^29.5.0",
+    "nodemon": "^2.0.21",
     "prettier": "latest",
-    "turbo": "latest"
+    "ts-node": "^10.9.1",
+    "turbo": "latest",
+    "typescript": "^4.7.4"
   },
   "engines": {
     "node": ">=14.0.0"
