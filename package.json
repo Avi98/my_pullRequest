@@ -1,18 +1,21 @@
 {
   "name": "mono-review",
   "version": "0.0.0",
+  "type": "module",
   "private": true,
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
+    "build": "dotenv turbo run build",
+    "dev": "dotenv turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
+    "@types/node": "^18.14.5",
+    "@types/tar": "^6.1.4",
     "eslint-config-custom": "workspace:*",
     "prettier": "latest",
     "turbo": "latest"
@@ -20,6 +23,9 @@
   "engines": {
     "node": ">=14.0.0"
   },
-  "dependencies": {},
-  "packageManager": "pnpm@7.21.0"
+  "packageManager": "pnpm@7.21.0",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "dotenv-cli": "^7.1.0"
+  }
 }

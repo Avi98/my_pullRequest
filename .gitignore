@@ -31,3 +31,12 @@ yarn-error.log*
 
 # turbo
 .turbo
+
+
+.env
+repo_dir
+.dist
+
+# test
+tmp
+tmp/**
