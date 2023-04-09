@@ -1,7 +1,5 @@
-import * as azdev from "azure-devops-node-api";
 import tl from "azure-pipelines-task-lib/task";
-import { Instance, LunchServer, env } from "@pr/core";
-import { ApiClient } from "./api";
+import { TriggerHandle } from "./triggerHandle";
 
 /**
  * get all labels using Azure API
@@ -9,9 +7,14 @@ import { ApiClient } from "./api";
  */
 const main = async () => {
   try {
-    const apiClient = new ApiClient(env.pat, "url", "projectName");
-    const allTags = await apiClient.getLabels(12);
-    console.log({ allTags });
+    const trigger = TriggerHandle.createTrigger();
+    if (await trigger.hasTriggerLabel()) {
+      // return createLivePR();
+    } else {
+      //no tags found
+      // hasInstanceForPR();
+      // removeUnusedInstance();
+    }
   } catch (error: any) {
     console.log({ error });
     tl.setResult(tl.TaskResult.Failed, error.message);
