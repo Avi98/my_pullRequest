@@ -9,7 +9,7 @@ const main = async () => {
   try {
     const trigger = TriggerHandle.createTrigger();
     if (await trigger.hasTriggerLabel()) {
-      // return createLivePR();
+      return trigger.createLivePR();
     } else {
       //no tags found
       // hasInstanceForPR();

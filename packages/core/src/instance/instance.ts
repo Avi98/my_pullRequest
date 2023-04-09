@@ -74,7 +74,7 @@ export class Instance implements IInstance {
       keyName,
     } = instanceConfig;
     try {
-      if (await this.isRunning(name)) {
+      if (await this.hasDuplicateInstance(name)) {
         //clean previous running docker images
 
         await this.getInstanceInfo({
@@ -84,7 +84,7 @@ export class Instance implements IInstance {
             //skip creating new instance
             await this.stopDockerContainer();
             const oldInstance = res.Reservations?.[0].Instances?.[0];
-            this.initializeInstance({
+            this.updateInstanceState({
               dns: oldInstance?.PublicDnsName || null,
               id: oldInstance?.InstanceId || null,
               name: instanceConfig.name || null,
@@ -138,7 +138,7 @@ export class Instance implements IInstance {
           );
 
           const launchedInstance = instance.Instances?.at(0) || null;
-          this.initializeInstance({
+          this.updateInstanceState({
             dns: launchedInstance?.PublicDnsName || null,
             id: launchedInstance?.InstanceId || null,
             name: instanceConfig.name || null,
@@ -182,7 +182,7 @@ export class Instance implements IInstance {
     if (
       instanceName &&
       (await polling({
-        cb: async () => await this.isRunning(instanceName),
+        cb: async () => await this.hasDuplicateInstance(instanceName),
       }))
     ) {
       return true;
@@ -331,13 +331,13 @@ export class Instance implements IInstance {
     }
   }
 
-  private initializeInstance(currentInstance: InitializeInstance) {
+  private updateInstanceState(currentInstance: InitializeInstance) {
     this.instanceName = currentInstance.name;
     this.launchedInstanceId = currentInstance.id;
     this.publicDns = currentInstance.dns;
   }
 
-  private isRunning = async (name: string) => {
+  hasDuplicateInstance = async (name: string) => {
     let isRunning = false;
     const instanceId = this.launchedInstanceId;
 
@@ -354,9 +354,8 @@ export class Instance implements IInstance {
               this.liveInstanceState(inst?.State?.Name)
             ) {
               //dns gets assigned only when the instance is live
-
               if (inst.PublicDnsName && inst.InstanceId)
-                this.initializeInstance({
+                this.updateInstanceState({
                   dns: inst.PublicDnsName,
                   id: inst.InstanceId,
                   name: name,
