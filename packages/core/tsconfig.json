@@ -1,20 +1,8 @@
 {
   "extends": "tsconfig/base.json",
-  "include": ["src/*/**.ts"],
-  "exclude": [".dist", "build", "node_modules"],
+  "include": ["src/*/**.ts", "src/**.ts"],
+  "exclude": [".dist", "node_modules"],
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": false,
-    "moduleResolution": "node",
-    "module": "ESNext",
-    "incremental": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "outDir": ".dist"
+    "rootDir": "src"
   }
 }
