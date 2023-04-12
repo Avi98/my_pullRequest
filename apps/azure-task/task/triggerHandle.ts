@@ -63,6 +63,7 @@ class TriggerHandle {
   async createComment() {
     try {
       //TODO: check if comment
+      console.log({ link: this.ec2.liveInstUrl });
     } catch (error) {}
   }
 
