@@ -23,7 +23,6 @@ export class LunchServer {
   async run(cloneLink: string) {
     try {
       const dockerfilePaths = cloneLink;
-      const tmpAppPath = `${config.localTempPath}/${config.tarballFile}`;
       const git = this.getGitUrl(dockerfilePaths);
       await this.cloneRepo(git);
       await this.compressRepo(config.localTempPath);
@@ -35,7 +34,7 @@ export class LunchServer {
 
       // launch instance
       await this.instance.launch({
-        name: "tobechange",
+        name: git.branch,
         sshPublicKey: env.sshKeys.publicKey,
         keyName: env.keyName,
         securityGroupId: env.securityId,

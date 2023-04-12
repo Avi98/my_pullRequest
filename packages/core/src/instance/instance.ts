@@ -24,8 +24,9 @@ type LaunchInstanceConfig = {
 
 type InitializeInstance = {
   name: string | null;
-  dns: string | null;
+  awsUrl: string | null;
   id: string | null;
+  ip: string | null;
 };
 interface IInstance {
   launch: (config: LaunchInstanceConfig) => void;
@@ -37,6 +38,7 @@ export class Instance implements IInstance {
   private semaphore: string;
   private privateKey: string;
   private publicDns: string | null;
+  private liveUrl: string | null;
 
   private cmd: typeof InstanceCmdFactories;
 
@@ -51,6 +53,7 @@ export class Instance implements IInstance {
     this.instanceName = null;
     this.publicDns = null;
     this.privateKey = sshPrivateKey;
+    this.liveUrl = null;
 
     this.client = InstanceCmdFactories.createInstance({
       region,
@@ -83,11 +86,12 @@ export class Instance implements IInstance {
           .then(async (res) => {
             //skip creating new instance
             await this.stopDockerContainer();
-            const oldInstance = res.Reservations?.[0].Instances?.[0];
+            const ec2Instance = res.Reservations?.[0].Instances?.[0];
             this.updateInstanceState({
-              dns: oldInstance?.PublicDnsName || null,
-              id: oldInstance?.InstanceId || null,
+              awsUrl: ec2Instance?.PublicDnsName || null,
+              id: ec2Instance?.InstanceId || null,
               name: instanceConfig.name || null,
+              ip: ec2Instance?.PublicIpAddress || null,
             });
           })
           .catch((e) => console.error(e));
@@ -139,9 +143,10 @@ export class Instance implements IInstance {
 
           const launchedInstance = instance.Instances?.at(0) || null;
           this.updateInstanceState({
-            dns: launchedInstance?.PublicDnsName || null,
+            awsUrl: launchedInstance?.PublicDnsName || null,
             id: launchedInstance?.InstanceId || null,
             name: instanceConfig.name || null,
+            ip: launchedInstance?.PublicIpAddress || null,
           });
 
           return instance.Instances?.at(0)?.InstanceId;
@@ -226,10 +231,7 @@ export class Instance implements IInstance {
   async setUpStartUpScript() {
     try {
       const currentDir = process.cwd();
-      const startScript = join(
-        currentDir,
-        "../core/src/uploadScript/upload.sh"
-      );
+      const startScript = join(currentDir, "../../uploadScript/upload.sh");
       await this.scp({ source: startScript, target: "/etc/prbranch" });
       //@TODO change the dockerimage tag based on the pullRequest and commit sha
       await this.ssh(`cd /etc/prbranch && sh upload.sh -a /app -g pullpreview`);
@@ -238,6 +240,10 @@ export class Instance implements IInstance {
         cause: error,
       });
     }
+  }
+
+  get liveInstUrl() {
+    return this.liveUrl;
   }
 
   private async scp({
@@ -334,7 +340,9 @@ export class Instance implements IInstance {
   private updateInstanceState(currentInstance: InitializeInstance) {
     this.instanceName = currentInstance.name;
     this.launchedInstanceId = currentInstance.id;
-    this.publicDns = currentInstance.dns;
+    this.publicDns = currentInstance.awsUrl;
+    //change this once the dns is setup
+    this.liveUrl = `http://${currentInstance.ip}:3000`;
   }
 
   hasDuplicateInstance = async (name: string) => {
@@ -356,9 +364,10 @@ export class Instance implements IInstance {
               //dns gets assigned only when the instance is live
               if (inst.PublicDnsName && inst.InstanceId)
                 this.updateInstanceState({
-                  dns: inst.PublicDnsName,
+                  awsUrl: inst.PublicDnsName,
                   id: inst.InstanceId,
                   name: name,
+                  ip: inst.PublicIpAddress || null,
                 });
               isRunning = true;
             }

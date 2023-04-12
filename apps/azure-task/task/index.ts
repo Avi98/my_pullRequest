@@ -9,14 +9,14 @@ const main = async () => {
   try {
     const trigger = TriggerHandle.createTrigger();
     if (await trigger.hasTriggerLabel()) {
-      return trigger.createLivePR();
+      return await trigger.createLivePR();
     } else {
       //no tags found
       // hasInstanceForPR();
       // removeUnusedInstance();
     }
   } catch (error: any) {
-    console.log({ error });
+    console.error({ error });
     tl.setResult(tl.TaskResult.Failed, error.message);
   }
 };
