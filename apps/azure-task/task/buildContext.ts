@@ -10,6 +10,9 @@ export const buildContext = {
   orgUrl:
     tl.getVariable("System.CollectionUri") ||
     "https://dev.azure.com/9958703925dad",
+  repoUrl:
+    tl.getVariable("Build.Repository.URI") ||
+    "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker",
 } as const;
 
 export type BuildContext = typeof buildContext;
