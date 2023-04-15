@@ -1,15 +1,15 @@
 import { Instance, LunchServer } from "@pr/core";
 import { ApiClient } from "./api";
-import { BuildContext, buildContext } from "./buildContext";
-
-const TRIGGER_LABEL = "live-pr";
+import type { Threads } from "./api";
+import { BuildContextType, buildContext } from "./buildContext";
 
 class TriggerHandle {
   private shouldCommentLiveUrl: boolean;
+  private TRIGGER_LABEL = "live-pr";
 
   constructor(
     private apiClient: ApiClient,
-    private buildContext: BuildContext,
+    private buildContext: BuildContextType,
     private instanceName: string,
     private ec2Starter: LunchServer,
     private ec2: Instance
@@ -17,10 +17,10 @@ class TriggerHandle {
     this.shouldCommentLiveUrl = false;
   }
 
-  static createTrigger() {
+  static async createTrigger() {
     if (!buildContext.token) throw new Error("Token not found in trigger");
 
-    const apiClient = ApiClient.initializeApi();
+    const apiClient = await ApiClient.initializeApi();
     const ec2 = new Instance({});
     const ec2Starter = new LunchServer(ec2);
 
@@ -39,7 +39,7 @@ class TriggerHandle {
       Number(this.buildContext.prId)
     );
     if (allLabels?.length)
-      return allLabels.some((label) => label.name === TRIGGER_LABEL);
+      return allLabels.some((label) => label.name === this.TRIGGER_LABEL);
     return false;
   }
 
@@ -48,11 +48,10 @@ class TriggerHandle {
       const gitUrl = this.buildContext.repoUrl;
       //Get clone link
       try {
-        console.log("create live link");
         await this.ec2Starter.run(gitUrl);
         const liveLink = this.ec2.liveInstUrl;
         if (liveLink) {
-          //@TODO create comment with liveInsUrl
+          await this.createUpdateLivePrThread(liveLink);
         }
       } catch (error) {
         console.error(error);
@@ -60,11 +59,51 @@ class TriggerHandle {
     }
   }
 
-  async createComment() {
+  async createUpdateLivePrThread(liveUrl: string) {
     try {
-      //TODO: check if comment
-      console.log({ link: this.ec2.liveInstUrl });
-    } catch (error) {}
+      const threads = await this.apiClient.getAllThreads();
+      const livePrThread = this.livePrThread(threads);
+      console.log({
+        livePrThread,
+        id: livePrThread?.comments?.[0].id,
+        thead: livePrThread?.id,
+      });
+
+      if (
+        threads &&
+        !!livePrThread &&
+        livePrThread?.comments?.[0].id &&
+        livePrThread?.id
+      ) {
+        console.log("found live comment updating comment");
+        await this.apiClient
+          .updateComment({
+            commentId: livePrThread.comments?.[0].id,
+            message: `\n you can view your changes at ${liveUrl}`,
+            threadId: livePrThread.id,
+          })
+          .catch((e) => {
+            throw e;
+          });
+      } else {
+        await this.apiClient
+          .createComment(`\n you can view your changes at ${liveUrl}`)
+          .catch((e) => {
+            throw e;
+          });
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private livePrThread(threads: Threads[]) {
+    const hasCommentWithId = threads?.find((thread) =>
+      thread.comments?.find((comment) =>
+        comment?.content?.includes("live pr at")
+      )
+    );
+    return hasCommentWithId;
   }
 
   private async noInstanceFound() {

@@ -1,10 +1,19 @@
 import { WebApi, getPersonalAccessTokenHandler } from "azure-devops-node-api";
 import { BuildContextType, buildContext } from "../buildContext";
 import { GitPullRequestCommentThread } from "azure-devops-node-api/interfaces/GitInterfaces";
+import { threadId } from "worker_threads";
 
 export type Threads = GitPullRequestCommentThread;
+
 export class ApiClient {
-  constructor(private connection: WebApi, private buildCtx: BuildContextType) {}
+  private COMMENT_IDENTIFIER = "LIVE_URL_MESSAGE";
+  private MS_COMMENTS_AUTHOR = "Microsoft.VisualStudio.Services";
+
+  private prAuthor: string | null;
+
+  constructor(private connection: WebApi, private buildCtx: BuildContextType) {
+    this.prAuthor = null;
+  }
 
   static async initializeApi() {
     if (!buildContext?.token) throw new Error("Token not found");
@@ -28,6 +37,22 @@ export class ApiClient {
     }
   }
 
+  async getPrAuthor() {
+    if (this.prAuthor) return this.prAuthor;
+
+    try {
+      const api = await this.connection.getGitApi();
+      const { prId, repoId } = this.buildCtx;
+
+      if (prId) {
+        const pr = await api.getPullRequestById(Number(prId));
+        return (this.prAuthor = pr.createdBy?.displayName || null);
+      }
+    } catch (error) {
+      throw new Error("Can not find PR author");
+    }
+  }
+
   async getAllThreads() {
     try {
       const api = await this.connection.getGitApi();
@@ -38,7 +63,7 @@ export class ApiClient {
             .filter(
               (thread) =>
                 !thread.comments?.[0].author?.displayName?.includes(
-                  "Microsoft.VisualStudio.Services"
+                  this.MS_COMMENTS_AUTHOR
                 )
             )
             .filter((comment) => !comment?.isDeleted);
@@ -48,6 +73,72 @@ export class ApiClient {
         });
     } catch (error) {
       throw new Error("API-ERROR: failed to get thread", { cause: error });
+    }
+  }
+
+  async createComment(commentMessage: string) {
+    const api = await this.connection.getGitApi();
+
+    const comment = [
+      {
+        content: await this.generateMessage(commentMessage),
+      },
+    ];
+
+    const thread: GitPullRequestCommentThread = {
+      comments: comment,
+      status: 1,
+      properties: {},
+    };
+
+    return await api
+      .createThread(thread, this.buildCtx.repoId, Number(this.buildCtx.prId))
+      .then((res) => {
+        console.log({ res });
+      })
+      .catch((e) => {
+        console.error(e);
+      });
+  }
+
+  private async generateMessage(comment: string) {
+    try {
+      const prAuthor = await this.getPrAuthor();
+
+      if (prAuthor) {
+        return `${this.COMMENT_IDENTIFIER}: Thanks ${this.prAuthor} for creating PR.\n ${comment}`;
+      }
+      return `${this.COMMENT_IDENTIFIER}: ${comment}`;
+    } catch (error) {
+      throw new Error("MessageGenerateFailed: failed to generate comment");
+    }
+  }
+
+  async updateComment(comment: {
+    commentId: number;
+    message: string;
+    threadId: number;
+  }) {
+    const api = await this.connection.getGitApi();
+    const commentPayload = {
+      content: await this.generateMessage(comment.message),
+      id: comment.commentId,
+    };
+
+    try {
+      return await api
+        .updateComment(
+          commentPayload,
+          this.buildCtx.repoId,
+          Number(this.buildCtx.prId),
+          threadId,
+          comment.commentId
+        )
+        .then((res) => {
+          console.log({ addedComment: res });
+        });
+    } catch (error) {
+      throw error;
     }
   }
 
