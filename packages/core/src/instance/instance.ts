@@ -78,23 +78,24 @@ export class Instance implements IInstance {
     } = instanceConfig;
     try {
       if (await this.hasDuplicateInstance(name)) {
-        //clean previous running docker images
+        //@TODO: clean previous running docker images
+        console.log("Instance already running for this PR 🏃");
 
-        await this.getInstanceInfo({
-          name: instanceConfig.name,
-        })
-          .then(async (res) => {
-            //skip creating new instance
-            await this.stopDockerContainer();
-            const ec2Instance = res.Reservations?.[0].Instances?.[0];
-            this.updateInstanceState({
-              awsUrl: ec2Instance?.PublicDnsName || null,
-              id: ec2Instance?.InstanceId || null,
-              name: instanceConfig.name || null,
-              ip: ec2Instance?.PublicIpAddress || null,
-            });
-          })
-          .catch((e) => console.error(e));
+        // await this.getInstanceInfo({
+        //   name: instanceConfig.name,
+        // })
+        //   .then(async (res) => {
+        //     //skip creating new instance
+        //     await this.stopDockerContainer();
+        //     const ec2Instance = res.Reservations?.[0].Instances?.[0];
+        //     this.updateInstanceState({
+        //       awsUrl: ec2Instance?.PublicDnsName || null,
+        //       id: ec2Instance?.InstanceId || null,
+        //       name: instanceConfig.name || null,
+        //       ip: ec2Instance?.PublicIpAddress || null,
+        //     });
+        //   })
+        //   .catch((e) => console.error(e));
         // start the same instance
         return;
       }
@@ -142,6 +143,9 @@ export class Instance implements IInstance {
           );
 
           const launchedInstance = instance.Instances?.at(0) || null;
+          console.log(
+            `instance state ${launchedInstance?.State?.Name} for InstanceName: ${name}, publicIp: ${launchedInstance?.PublicIpAddress} `
+          );
           this.updateInstanceState({
             awsUrl: launchedInstance?.PublicDnsName || null,
             id: launchedInstance?.InstanceId || null,
@@ -348,27 +352,30 @@ export class Instance implements IInstance {
   hasDuplicateInstance = async (name: string) => {
     let isRunning = false;
     const instanceId = this.launchedInstanceId;
-
-    console.log(`\nInstance with instanceId:${instanceId} running\n`);
     try {
       await this.getInstanceInfo({ id: instanceId || undefined, name })
         .then((res) => {
-          console.log(`checking instance ${instanceId} state`);
-          const instance = res.Reservations?.at(0);
-          instance?.Instances?.forEach((inst) => {
-            console.log(`instance state ${inst?.State?.Name}`);
+          console.log("Get instance res");
+          res?.forEach((inst) => {
+            const instanceNameTag = inst?.Tags?.filter(
+              (tag) => tag.Value === name
+            )[0];
+
+            //dns gets assigned only when the instance is live, so need to make sure instance is live
             if (
-              inst?.State?.Name &&
-              this.liveInstanceState(inst?.State?.Name)
+              inst?.PublicDnsName &&
+              inst.InstanceId &&
+              instanceNameTag?.Value
             ) {
-              //dns gets assigned only when the instance is live
-              if (inst.PublicDnsName && inst.InstanceId)
-                this.updateInstanceState({
-                  awsUrl: inst.PublicDnsName,
-                  id: inst.InstanceId,
-                  name: name,
-                  ip: inst.PublicIpAddress || null,
-                });
+              console.log(
+                `instance state ${inst?.State?.Name} for InstanceName: ${instanceNameTag?.Value} `
+              );
+              this.updateInstanceState({
+                awsUrl: inst.PublicDnsName,
+                id: inst.InstanceId,
+                name: name,
+                ip: inst.PublicIpAddress || null,
+              });
               isRunning = true;
             }
           });
@@ -383,9 +390,6 @@ export class Instance implements IInstance {
     return isRunning;
   };
 
-  private liveInstanceState = (state: string | InstanceStateName) =>
-    [InstanceStateName.running].includes(state as InstanceStateName);
-
   private async getInstanceInfo(queryInstance: { id?: string; name: string }) {
     const ids = queryInstance.id ? [queryInstance.id] : undefined;
     return await this.client
@@ -397,11 +401,17 @@ export class Instance implements IInstance {
               Name: "tag:Name",
               Values: [queryInstance.name],
             },
+            {
+              Name: "instance-state-name",
+              Values: [InstanceStateName.running],
+            },
           ],
         })
       )
       .then((res) => {
-        return res;
+        return res.Reservations?.flatMap(
+          (reservation) => reservation.Instances
+        );
       })
       .catch((e) => {
         console.error(e);
