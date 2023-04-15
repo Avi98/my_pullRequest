@@ -7,7 +7,7 @@ import { TriggerHandle } from "./triggerHandle";
  */
 const main = async () => {
   try {
-    const trigger = TriggerHandle.createTrigger();
+    const trigger = await TriggerHandle.createTrigger();
     if (await trigger.hasTriggerLabel()) {
       return await trigger.createLivePR();
     } else {
@@ -16,7 +16,6 @@ const main = async () => {
       // removeUnusedInstance();
     }
   } catch (error: any) {
-    console.error({ error });
     tl.setResult(tl.TaskResult.Failed, error.message);
   }
 };

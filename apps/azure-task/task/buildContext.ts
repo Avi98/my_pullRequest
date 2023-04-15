@@ -13,6 +13,7 @@ export const buildContext = {
   repoUrl:
     tl.getVariable("Build.Repository.URI") ||
     "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker",
+  projectName: tl.getVariable("System.TeamProject") || "bookshelf",
 } as const;
 
-export type BuildContext = typeof buildContext;
+export type BuildContextType = typeof buildContext;
