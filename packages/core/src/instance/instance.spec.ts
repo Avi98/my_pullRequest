@@ -9,3 +9,5 @@ describe("Instance", () => {
   it("should verifyssh cmd by verify file ready on server ", () => {});
   it("should should copy files on server", () => {});
 });
+
+export const a = "test";
