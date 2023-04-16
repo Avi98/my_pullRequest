@@ -390,7 +390,7 @@ export class Instance implements IInstance {
     return isRunning;
   };
 
-  private async getInstanceInfo(queryInstance: { id?: string; name: string }) {
+  async getInstanceInfo(queryInstance: { id?: string; name: string }) {
     const ids = queryInstance.id ? [queryInstance.id] : undefined;
     return await this.client
       .send(

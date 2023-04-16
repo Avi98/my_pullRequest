@@ -1,21 +1,21 @@
 import { Instance, LunchServer } from "@pr/core";
 import { ApiClient } from "./api";
 import type { Threads } from "./api";
+import { mapPrStatusToText } from "./util/mapPRStatus";
 import { BuildContextType, buildContext } from "./buildContext";
 
 class TriggerHandle {
-  private shouldCommentLiveUrl: boolean;
   private TRIGGER_LABEL = "live-pr";
+  // when merged pull request the reason will be IndividualCI
+  // https://stackoverflow.com/questions/73053721/azure-devops-pipelines-to-trigger-only-on-merge
+  private MERGED_TRIGGER_REASON = ["PullRequest", "IndividualCI"];
 
   constructor(
     private apiClient: ApiClient,
     private buildContext: BuildContextType,
-    private instanceName: string,
     private ec2Starter: LunchServer,
     private ec2: Instance
-  ) {
-    this.shouldCommentLiveUrl = false;
-  }
+  ) {}
 
   static async createTrigger() {
     if (!buildContext.token) throw new Error("Token not found in trigger");
@@ -24,13 +24,7 @@ class TriggerHandle {
     const ec2 = new Instance({});
     const ec2Starter = new LunchServer(ec2);
 
-    return new TriggerHandle(
-      apiClient,
-      buildContext,
-      String(buildContext.prId),
-      ec2Starter,
-      ec2
-    );
+    return new TriggerHandle(apiClient, buildContext, ec2Starter, ec2);
   }
 
   async hasTriggerLabel() {
@@ -107,8 +101,65 @@ class TriggerHandle {
   }
 
   private async noInstanceFound() {
-    const hasInstance = await this.ec2.hasDuplicateInstance(this.instanceName);
+    const hasInstance = await this.ec2.hasDuplicateInstance("");
     return hasInstance;
+  }
+
+  async isPRMerged() {
+    try {
+      const { buildReason } = this.buildContext;
+      const isReasonMerged = this.MERGED_TRIGGER_REASON.includes(buildReason);
+
+      if (isReasonMerged) {
+        const status = await this.prStatus();
+        return status === "Succeeded";
+      }
+      return false;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async prStatus() {
+    try {
+      const pr = await this.apiClient.getPR();
+
+      if (pr.status === undefined)
+        throw new Error("TRIGGER_HANDLE: PR Status not found");
+
+      return mapPrStatusToText[pr.status];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async cleanUp() {
+    try {
+      if (!"develop")
+        throw new Error(
+          "CLEAN_UP: instance name not provided for destroying instance"
+        );
+
+      console.log("cleaning all the instances");
+      const instance = await this.ec2
+        .getInstanceInfo({
+          name: "develop",
+        })
+        .catch((e) => {
+          throw e;
+        });
+
+      if (!instance) throw new Error("CLEAN_UP: instance not found");
+
+      console.log({ instance });
+      await this.ec2.deleteInstance(
+        instance.map((ec2) =>
+          Boolean(ec2?.InstanceId) ? ec2!.InstanceId : ""
+        ) as string[]
+      );
+    } catch (error) {
+      throw error;
+    }
   }
 }
 
