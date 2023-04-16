@@ -37,6 +37,18 @@ export class ApiClient {
     }
   }
 
+  async getPR() {
+    try {
+      const { prId } = this.buildCtx;
+      if (!prId) throw new Error("PR ID not found");
+
+      const api = await this.connection.getGitApi();
+      return await api.getPullRequestById(Number(prId));
+    } catch (error) {
+      throw new Error("API_ERROR: failed to get pr");
+    }
+  }
+
   async getPrAuthor() {
     if (this.prAuthor) return this.prAuthor;
 

@@ -1,23 +1,24 @@
 import tl from "azure-pipelines-task-lib/task";
 import { TriggerHandle } from "./triggerHandle";
+import { CleanUpLoseInstance } from "./cleanup";
 
-/**
- * get all labels using Azure API
- *
- */
 const main = async () => {
   try {
     const trigger = await TriggerHandle.createTrigger();
-    if (await trigger.hasTriggerLabel()) {
-      return await trigger.createLivePR();
-    } else {
-      //no tags found
-      // hasInstanceForPR();
-      // removeUnusedInstance();
+    const hasLabel = await trigger.hasTriggerLabel();
+    const shouldCleanUp = (await trigger.isPRMerged()) || !hasLabel;
+
+    if (shouldCleanUp) {
+      return await trigger.cleanUp();
     }
+
+    return await trigger.createLivePR();
   } catch (error: any) {
     tl.setResult(tl.TaskResult.Failed, error.message);
   }
 };
 
-main();
+main().finally(() => {
+  //@TODO: clean dead pr instances
+  new CleanUpLoseInstance().run();
+});

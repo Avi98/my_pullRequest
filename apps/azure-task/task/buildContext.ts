@@ -14,6 +14,9 @@ export const buildContext = {
     tl.getVariable("Build.Repository.URI") ||
     "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker",
   projectName: tl.getVariable("System.TeamProject") || "bookshelf",
+  buildReason: tl.getVariable("Build.Reason") || "PullRequest",
+  targetBranch: tl.getVariable("System.PullRequest.targetBranchName") || "",
+  sourceBranch: tl.getVariable("System.PullRequest.SourceBranch") || "",
 } as const;
 
 export type BuildContextType = typeof buildContext;
