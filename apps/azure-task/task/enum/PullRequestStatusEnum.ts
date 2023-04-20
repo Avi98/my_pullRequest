@@ -2,7 +2,7 @@
  * copied from the GitInterfaces.d.ts from
  * State of the status.
  */
-export declare enum PullRequestStatusEnum {
+export enum PullRequestStatusEnum {
   /**
    * Status state not set. Default state.
    */

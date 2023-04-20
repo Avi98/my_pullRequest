@@ -1,4 +1,4 @@
-import { env } from "@pr/core";
+import { env } from "./core/index.js";
 import tl from "azure-pipelines-task-lib";
 
 export const buildContext = {

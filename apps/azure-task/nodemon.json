@@ -3,10 +3,8 @@
   "restartable": "rs",
   "ignore": [".git", "node_modules/", "dist/", "coverage/"],
   "watch": ["task/"],
-  "execMap": {
-    "ts": "node -r ts-node/register"
-  },
-  "exec": "ts-node task/index.ts",
+
+  "exec": "tsc -p . && node .dist/task/index.js",
   "env": {
     "NODE_ENV": "develop"
   },

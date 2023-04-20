@@ -1,6 +1,6 @@
-import tl from "azure-pipelines-task-lib/task";
-import { TriggerHandle } from "./triggerHandle";
-import { CleanUpLoseInstance } from "./cleanup";
+import { TaskResult, setResult } from "azure-pipelines-task-lib";
+import { TriggerHandle } from "./triggerHandle.js";
+import { CleanUpLoseInstance } from "./cleanup/index.js";
 
 const main = async () => {
   try {
@@ -14,7 +14,7 @@ const main = async () => {
 
     return await trigger.createLivePR();
   } catch (error: any) {
-    tl.setResult(tl.TaskResult.Failed, error.message);
+    setResult(TaskResult.Failed, error.message);
   }
 };
 

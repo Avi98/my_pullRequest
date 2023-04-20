@@ -1,8 +1,8 @@
-import { Instance, LunchServer } from "@pr/core";
-import { ApiClient } from "./api";
-import type { Threads } from "./api";
-import { mapPrStatusToText } from "./util/mapPRStatus";
-import { BuildContextType, buildContext } from "./buildContext";
+import { Instance, LunchServer } from "./core/index.js";
+import { ApiClient } from "./api/index.js";
+import type { Threads } from "./api/index.js";
+import { mapPrStatusToText } from "./util/mapPRStatus.js";
+import { BuildContextType, buildContext } from "./buildContext.js";
 
 class TriggerHandle {
   private TRIGGER_LABEL = "live-pr";
