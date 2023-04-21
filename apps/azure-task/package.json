@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --config nodemon.json"
+    "dev": "nodemon --config nodemon.json",
+    "build": "tsc --build",
+    "pack": "bash ../../scripts/pack-azure-task.sh"
   },
   "keywords": [],
   "author": "avinash",
