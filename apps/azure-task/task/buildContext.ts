@@ -17,6 +17,7 @@ export const buildContext = {
   buildReason: tl.getVariable("Build.Reason") || "PullRequest",
   targetBranch: tl.getVariable("System.PullRequest.targetBranchName") || "",
   sourceBranch: tl.getVariable("System.PullRequest.SourceBranch") || "",
+  clonePath: tl.getVariable("Agent.TempDirectory") || process.cwd(),
 } as const;
 
 export type BuildContextType = typeof buildContext;

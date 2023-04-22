@@ -23,4 +23,4 @@ touch $distPath/task.json && cat $taskPath > $distPath/task.json
 cd $distPath && npm i && cd - 
 
 # change dir to .dist and then only run tfx pack cmd
-cd .dist && tfx extension create --rev-version --manifest-globs && cd -
+cd .dist && tfx extension create --manifest-globs && cd -

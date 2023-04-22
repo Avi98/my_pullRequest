@@ -1,10 +1,10 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync } from "fs";
 import { join } from "path";
 import { env } from "../utils/env.js";
 import { InstanceCmdFactories } from "./instanceFactories.js";
-import { polling, sleep } from "./utils.js";
+import { polling, createPrivateIdentity } from "./utils.js";
 
 type InstanceConfigType = {
   region?: string;
@@ -39,8 +39,9 @@ export class Instance implements IInstance {
   private privateKey: string;
   private publicDns: string | null;
   private liveUrl: string | null;
-
   private cmd: typeof InstanceCmdFactories;
+
+  static privateIdentityFile = join(process.cwd(), "../../private");
 
   constructor({
     region = "us-east-1",
@@ -232,10 +233,14 @@ export class Instance implements IInstance {
     }
   }
 
-  async setUpStartUpScript() {
+  async mvStartScriptToServer(
+    startScriptPath = "../../../uploadScript/upload.sh"
+  ) {
     try {
       const currentDir = process.cwd();
-      const startScript = join(currentDir, "../../uploadScript/upload.sh");
+      const startScript = join(currentDir, startScriptPath);
+      if (!existsSync(startScriptPath))
+        throw new Error("Docker Start script not found");
       await this.scp({ source: startScript, target: "/etc/prbranch" });
       //@TODO change the dockerimage tag based on the pullRequest and commit sha
       await this.ssh(`cd /etc/prbranch && sh upload.sh -a /app -g pullpreview`);
@@ -263,8 +268,12 @@ export class Instance implements IInstance {
   }) {
     const host = this.publicDns;
     const remoteUser = "ec2-user";
-    const tempPrivateKey = join(process.cwd(), "../../tmp/private");
+    const tempPrivateKey = Instance.privateIdentityFile;
+
+    await createPrivateIdentity(tempPrivateKey, this.privateKey);
+
     console.log("Starting to cpy files to server 📁 ---> 📂");
+
     await execa(
       "scp",
       [
@@ -299,17 +308,14 @@ export class Instance implements IInstance {
       });
   }
 
-  private async ssh(cmd: string, file?: string, debug = false) {
+  private async ssh(cmd: string, file?: string, debug = true) {
     const publicDns = this.publicDns;
     const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
 
-    const tempPrivateKey = join(process.cwd(), "../../tmp/private");
+    const tempPrivateKey = Instance.privateIdentityFile;
+    await createPrivateIdentity(tempPrivateKey, privateKey);
 
-    if (!existsSync(tempPrivateKey)) {
-      writeFileSync(tempPrivateKey, privateKey, { mode: "0600" });
-      console.log(`Private key saved to ${tempPrivateKey}`);
-    }
     const cmdToRun = `ssh ${
       debug ? "-v" : ""
     } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;

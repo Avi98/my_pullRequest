@@ -1,17 +1,17 @@
-import { execa } from "execa";
+import { $, execa } from "execa";
 import { createReadStream, createWriteStream, existsSync } from "fs";
-
-import { join } from "path";
-import { createGzip } from "zlib";
 import { Instance } from "../instance/index.js";
 import { polling, sleep } from "../instance/utils.js";
 import { env } from "../utils/env.js";
+import { buildContext } from "../../buildContext.js";
 
 const config = {
   serverAppPath: "/etc/prbranch/app/app.tar.gz",
-  localTempPath: join(process.cwd(), "../../tmp"),
+  workingDir: buildContext.clonePath,
+  clonePath: `${buildContext.clonePath}/app`,
   keyName: "my-proto-type-keyPair",
-  tarballFile: "app.tar.gz",
+  tarballFile: `${buildContext.clonePath}/app.tar.gz`,
+  sourceBranch: buildContext.sourceBranch,
 };
 export class LunchServer {
   instance: Instance;
@@ -23,9 +23,12 @@ export class LunchServer {
   async run(cloneLink: string) {
     try {
       const dockerfilePaths = cloneLink;
-      const git = this.getGitUrl(dockerfilePaths);
-      await this.cloneRepo(git);
-      await this.compressRepo(config.localTempPath);
+      const git = this.getGitUrl(dockerfilePaths, config.sourceBranch);
+      if (!config.clonePath) throw new Error("Clone Path not found");
+
+      console.log({ clone: config.clonePath });
+      await this.cloneRepo({ ...git, clonePath: config.clonePath });
+      await this.compressRepo(config.clonePath);
 
       if (!env.securityGroup || !env.securityId || !env.keyName)
         throw new Error(
@@ -44,14 +47,14 @@ export class LunchServer {
         instanceType: env.imageType,
       });
 
-      await sleep(10);
+      await sleep(5);
 
       try {
         await this.instance
           .waitUntilInstance()
           .then(async () => {
             //instance after starting tasks some time to start sshd
-            await sleep(10);
+            await sleep(5);
             try {
               await polling({
                 maxRetries: 3,
@@ -71,24 +74,28 @@ export class LunchServer {
 
         await sleep(5);
         await this.instance.cpyTarOnInstance(
-          `${config.localTempPath}/${config.tarballFile}`,
+          `${config.tarballFile}`,
           config.serverAppPath
         );
 
-        await this.instance.setUpStartUpScript();
+        await this.instance.mvStartScriptToServer();
       } catch (error) {
-        // throw Error("Docker image creation failed aborting...", {
-        //   cause: error,
-        // });
         console.error(error);
+        throw Error("Docker image creation failed aborting...", {
+          cause: error,
+        });
       }
     } catch (error) {
       throw error;
     }
   }
 
-  private async cloneRepo(git: { url: string; branch: string }) {
-    await this.removeTempAppDir();
+  private async cloneRepo(git: {
+    url: string;
+    branch: string;
+    clonePath: string;
+  }) {
+    // await this.removeTempAppDir();
     try {
       console.log("cloning new dir");
       const repo = await execa(
@@ -98,7 +105,7 @@ export class LunchServer {
           git.url,
           "--depth=1",
           `--branch=${git.branch}`,
-          config.localTempPath,
+          git.clonePath,
         ],
         { verbose: true }
       );
@@ -110,10 +117,29 @@ export class LunchServer {
 
   private async compressRepo(repoPath: string) {
     console.log("Compressing new dir");
+    const whoami = await $`whoami`;
+    console.log({ whoami: whoami.stdout });
+    const isDir = await $`ls ${repoPath}`;
+    console.log({ isDir });
+    const files = await $`ls -ld ${repoPath}`;
+    console.log({ files });
+
+    console.log("cmd running");
+    console.log(
+      `tar ${[
+        "cfz",
+        `${config.tarballFile}`,
+        "--exclude",
+        ".git",
+        "-C",
+        repoPath,
+        ".",
+      ].join(" ")} `
+    );
 
     await execa("tar", [
       "cfz",
-      `${repoPath}/${config.tarballFile}`,
+      `${config.tarballFile}`,
       "--exclude",
       ".git",
       "-C",
@@ -122,14 +148,14 @@ export class LunchServer {
     ])
       .then(() => console.log("compress and saved file"))
       .catch((e) => {
-        throw new Error("File compress failed");
+        throw new Error("File compress failed", { cause: e });
       });
   }
-  private async removeTempAppDir() {
-    if (existsSync(config.localTempPath)) {
-      await execa("rm", ["-rf", config.localTempPath])
+  private async removeTempAppDir(tempDir: string) {
+    if (existsSync(tempDir)) {
+      await execa("rm", ["-rf", tempDir])
         .then(() => {
-          console.log(`${config.localTempPath} removed`);
+          console.log(`${tempDir} removed`);
         })
         .catch(() => {
           throw new Error("Failed to remove dir");
@@ -139,18 +165,19 @@ export class LunchServer {
     }
   }
 
-  extractRepo(path: string) {
-    const opStream = createReadStream(path).pipe(createGzip());
-    opStream.pipe(createWriteStream(config.localTempPath));
-  }
+  // extractRepo(path: string) {
+  //   const opStream = createReadStream(path).pipe(createGzip());
+  //   opStream.pipe(createWriteStream(config.clonePath));
+  // }
 
-  private getGitUrl(appPath: string) {
+  private getGitUrl(appPath: string, sourceBranch = "develop") {
     const hasHttpRegEx = /^https?/;
 
     if (!hasHttpRegEx.test(appPath))
       throw new Error("APP_PATH should be git clone path");
 
-    const [gitUrl, ref = "develop"] = appPath.split("#", 2);
-    return { url: gitUrl, branch: ref };
+    const [gitUrl] = appPath.split("#", 2);
+
+    return { url: gitUrl, branch: sourceBranch?.replace?.("refs/heads/", "") };
   }
 }

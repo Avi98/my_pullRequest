@@ -15,6 +15,7 @@ to pack V2 of task and create task extension
 
 ### TODO
 
-- check for "PR-link" task
+check for the "PR-link" task
+
 - run instance
-- create a comment and on the PR with link
+- create a comment on the PR with a link

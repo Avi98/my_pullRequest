@@ -5,7 +5,7 @@ import { mapPrStatusToText } from "./util/mapPRStatus.js";
 import { BuildContextType, buildContext } from "./buildContext.js";
 
 class TriggerHandle {
-  private TRIGGER_LABEL = "live-pr";
+  static TRIGGER_LABEL = "live-pr";
   // when merged pull request the reason will be IndividualCI
   // https://stackoverflow.com/questions/73053721/azure-devops-pipelines-to-trigger-only-on-merge
   private MERGED_TRIGGER_REASON = ["PullRequest", "IndividualCI"];
@@ -18,8 +18,6 @@ class TriggerHandle {
   ) {}
 
   static async createTrigger() {
-    if (!buildContext.token) throw new Error("Token not found in trigger");
-
     const apiClient = await ApiClient.initializeApi();
     const ec2 = new Instance({});
     const ec2Starter = new LunchServer(ec2);
@@ -33,7 +31,9 @@ class TriggerHandle {
       Number(this.buildContext.prId)
     );
     if (allLabels?.length)
-      return allLabels.some((label) => label.name === this.TRIGGER_LABEL);
+      return allLabels.some(
+        (label) => label.name === TriggerHandle.TRIGGER_LABEL
+      );
     return false;
   }
 
@@ -48,7 +48,7 @@ class TriggerHandle {
           await this.createUpdateLivePrThread(liveLink);
         }
       } catch (error) {
-        console.error(error);
+        throw error;
       }
     }
   }

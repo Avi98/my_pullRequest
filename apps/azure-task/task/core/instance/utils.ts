@@ -1,3 +1,6 @@
+import { $ } from "execa";
+import { existsSync, writeFileSync } from "fs";
+
 type PollingType = {
   maxRetries?: number;
   interval?: number;
@@ -42,4 +45,24 @@ export const sleep = (timeout = 2) => {
       res("");
     }, 1000 * timeout)
   );
+};
+
+export const createPrivateIdentity = async (
+  tempPrivateKeyPath: string,
+  privateKey: string
+) => {
+  if (!existsSync(tempPrivateKeyPath)) {
+    console.log("🔑 Not found file privateKey ❌");
+    writeFileSync(tempPrivateKeyPath, privateKey, { mode: "600" });
+
+    await filePermission(tempPrivateKeyPath);
+    console.log(`Private key saved to ${tempPrivateKeyPath}`);
+  }
+  console.log("Found file privateKey 🔑");
+  await filePermission(tempPrivateKeyPath);
+};
+
+export const filePermission = async (filePath: string) => {
+  const permission = await $`cat ${filePath}`;
+  console.log({ permission });
 };

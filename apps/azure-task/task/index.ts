@@ -9,11 +9,21 @@ const main = async () => {
     const shouldCleanUp = (await trigger.isPRMerged()) || !hasLabel;
 
     if (shouldCleanUp) {
+      if (!hasLabel) {
+        console.log(
+          `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️ `
+        );
+      }
       return await trigger.cleanUp();
     }
 
+    console.log(
+      `Found ${TriggerHandle.TRIGGER_LABEL} creating the updated PR preview link 🚀 `
+    );
+
     return await trigger.createLivePR();
   } catch (error: any) {
+    console.error(error);
     setResult(TaskResult.Failed, error.message);
   }
 };
