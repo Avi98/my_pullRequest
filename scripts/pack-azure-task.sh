@@ -22,5 +22,6 @@ touch $distPath/task.json && cat $taskPath > $distPath/task.json
 
 cd $distPath && npm i && cd - 
 
+NODE_ENV="prod"
 # change dir to .dist and then only run tfx pack cmd
 cd .dist && tfx extension create --manifest-globs && cd -

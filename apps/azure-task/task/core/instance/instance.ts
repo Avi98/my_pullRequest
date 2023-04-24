@@ -1,10 +1,11 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
-import { existsSync } from "fs";
+import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { env } from "../utils/env.js";
 import { InstanceCmdFactories } from "./instanceFactories.js";
 import { polling, createPrivateIdentity } from "./utils.js";
+import { buildContext } from "../../buildContext.js";
 
 type InstanceConfigType = {
   region?: string;
@@ -41,7 +42,7 @@ export class Instance implements IInstance {
   private liveUrl: string | null;
   private cmd: typeof InstanceCmdFactories;
 
-  static privateIdentityFile = join(process.cwd(), "../../private");
+  static privateIdentityFile = join(`${buildContext.clonePath}`, "private.pem");
 
   constructor({
     region = "us-east-1",
@@ -308,17 +309,16 @@ export class Instance implements IInstance {
       });
   }
 
-  private async ssh(cmd: string, file?: string, debug = true) {
+  private async ssh(cmd: string, file?: string, debug = false) {
     const publicDns = this.publicDns;
     const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
-
     const tempPrivateKey = Instance.privateIdentityFile;
     await createPrivateIdentity(tempPrivateKey, privateKey);
 
     const cmdToRun = `ssh ${
-      debug ? "-v" : ""
-    } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
+      debug ? "-vvv" : ""
+    } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 "${sshAddress}" "${cmd}"`;
 
     const cpyFile = `cat ${file} | ${cmdToRun}`;
     console.log(`\n running cmd..`);

@@ -1,5 +1,6 @@
 import { $ } from "execa";
-import { existsSync, writeFileSync } from "fs";
+import { chmod, chmodSync, existsSync, writeFileSync } from "fs";
+import { async } from "q";
 
 type PollingType = {
   maxRetries?: number;
@@ -51,18 +52,20 @@ export const createPrivateIdentity = async (
   tempPrivateKeyPath: string,
   privateKey: string
 ) => {
-  if (!existsSync(tempPrivateKeyPath)) {
-    console.log("🔑 Not found file privateKey ❌");
-    writeFileSync(tempPrivateKeyPath, privateKey, { mode: "600" });
-
-    await filePermission(tempPrivateKeyPath);
-    console.log(`Private key saved to ${tempPrivateKeyPath}`);
-  }
-  console.log("Found file privateKey 🔑");
-  await filePermission(tempPrivateKeyPath);
-};
-
-export const filePermission = async (filePath: string) => {
-  const permission = await $`cat ${filePath}`;
-  console.log({ permission });
+  console.log("🔑 Not found file privateKey ❌");
+  writeFileSync(tempPrivateKeyPath, "");
+  await $({
+    verbose: true,
+    shell: true,
+  })`echo ${privateKey} | tr -d '\r' > ${tempPrivateKeyPath}`
+    .then(async (temp) => {
+      await $`chmod 600 ${tempPrivateKeyPath}`;
+      console.log(temp);
+      console.log("private key saved");
+    })
+    .catch((e) => {
+      console.log("private key failed to save");
+      console.error(e);
+      console.log("--------");
+    });
 };

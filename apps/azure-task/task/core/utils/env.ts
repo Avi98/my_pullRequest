@@ -16,6 +16,7 @@ export const env = {
   securityGroup: process.env.SG,
   keyName: process.env.KEY_NAME,
   pat: process.env.PAT,
+  isDev: process.env?.NODE_ENV === "develop",
   sshKeys: {
     publicKey: castEnv({
       env: process.env.SSH_PUBLIC_KEY,

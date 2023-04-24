@@ -1,6 +1,8 @@
+import { join } from "path";
 import { env } from "./core/index.js";
 import tl from "azure-pipelines-task-lib";
 
+const isDev = env.isDev;
 export const buildContext = {
   repoId:
     tl.getVariable("Build.Repository.ID") ||
@@ -16,8 +18,10 @@ export const buildContext = {
   projectName: tl.getVariable("System.TeamProject") || "bookshelf",
   buildReason: tl.getVariable("Build.Reason") || "PullRequest",
   targetBranch: tl.getVariable("System.PullRequest.targetBranchName") || "",
-  sourceBranch: tl.getVariable("System.PullRequest.SourceBranch") || "",
-  clonePath: tl.getVariable("Agent.TempDirectory") || process.cwd(),
+  sourceBranch: tl.getVariable("System.PullRequest.SourceBranch") || "develop",
+  clonePath: isDev
+    ? join(process.cwd(), "../.dist/tmp")
+    : tl.getVariable("Agent.TempDirectory"),
 } as const;
 
 export type BuildContextType = typeof buildContext;
