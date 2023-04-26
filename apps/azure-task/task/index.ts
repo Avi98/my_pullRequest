@@ -1,6 +1,7 @@
 import { TaskResult, setResult } from "azure-pipelines-task-lib";
 import { TriggerHandle } from "./triggerHandle.js";
 import { CleanUpLoseInstance } from "./cleanup/index.js";
+import { env } from "./core/index.js";
 
 const main = async () => {
   try {
@@ -28,7 +29,25 @@ const main = async () => {
   }
 };
 
-main().finally(() => {
-  //@TODO: clean dead pr instances
-  new CleanUpLoseInstance().run();
-});
+if (env.isDev) {
+  const core = await import("./core/index.js");
+  const dotenv = await import("dotenv");
+
+  dotenv.config();
+  console.log({ env: process.env });
+
+  const ec2 = new core.Instance({});
+  const ec2Starter = new core.LunchServer(ec2);
+  await ec2Starter
+    .run(
+      "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker"
+    )
+    .catch((e) => {
+      console.error(e);
+    });
+} else {
+  main().finally(() => {
+    //@TODO: clean dead pr instances
+    new CleanUpLoseInstance().run();
+  });
+}

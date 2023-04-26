@@ -1,11 +1,12 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
 import { existsSync, writeFileSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
 import { env } from "../utils/env.js";
 import { InstanceCmdFactories } from "./instanceFactories.js";
 import { polling, createPrivateIdentity } from "./utils.js";
 import { buildContext } from "../../buildContext.js";
+import { fileURLToPath } from "url";
 
 type InstanceConfigType = {
   region?: string;
@@ -42,7 +43,10 @@ export class Instance implements IInstance {
   private liveUrl: string | null;
   private cmd: typeof InstanceCmdFactories;
 
-  static privateIdentityFile = join(`${buildContext.clonePath}`, "private.pem");
+  static privateIdentityFile = join(
+    `${buildContext.buildDirectory}`,
+    "private"
+  );
 
   constructor({
     region = "us-east-1",
@@ -234,12 +238,16 @@ export class Instance implements IInstance {
     }
   }
 
-  async mvStartScriptToServer(
-    startScriptPath = "../../../uploadScript/upload.sh"
-  ) {
+  async mvStartScriptToServer(startScriptPath = "../uploadScript/upload.sh") {
     try {
-      const currentDir = process.cwd();
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+
+      const currentDir = __dirname;
+      const startScriptPath = "../uploadScript/upload.sh";
+
       const startScript = join(currentDir, startScriptPath);
+
       if (!existsSync(startScriptPath))
         throw new Error("Docker Start script not found");
       await this.scp({ source: startScript, target: "/etc/prbranch" });
@@ -318,7 +326,7 @@ export class Instance implements IInstance {
 
     const cmdToRun = `ssh ${
       debug ? "-vvv" : ""
-    } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 "${sshAddress}" "${cmd}"`;
+    } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
 
     const cpyFile = `cat ${file} | ${cmdToRun}`;
     console.log(`\n running cmd..`);

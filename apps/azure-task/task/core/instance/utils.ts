@@ -1,7 +1,3 @@
-import { $ } from "execa";
-import { chmod, chmodSync, existsSync, writeFileSync } from "fs";
-import { async } from "q";
-
 type PollingType = {
   maxRetries?: number;
   interval?: number;
@@ -48,24 +44,16 @@ export const sleep = (timeout = 2) => {
   );
 };
 
+/**
+ * @TODO this depends on the tempPrivatePath. need to remove the dependency
+ * from build pipeline to implicitly generate the private key and use it
+ * @param tempPrivateKeyPath
+ * @param privateKey
+ * @returns
+ */
 export const createPrivateIdentity = async (
   tempPrivateKeyPath: string,
-  privateKey: string
+  privateKey?: string
 ) => {
-  console.log("🔑 Not found file privateKey ❌");
-  writeFileSync(tempPrivateKeyPath, "");
-  await $({
-    verbose: true,
-    shell: true,
-  })`echo ${privateKey} | tr -d '\r' > ${tempPrivateKeyPath}`
-    .then(async (temp) => {
-      await $`chmod 600 ${tempPrivateKeyPath}`;
-      console.log(temp);
-      console.log("private key saved");
-    })
-    .catch((e) => {
-      console.log("private key failed to save");
-      console.error(e);
-      console.log("--------");
-    });
+  return tempPrivateKeyPath;
 };
