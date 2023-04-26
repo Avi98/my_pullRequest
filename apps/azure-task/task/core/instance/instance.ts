@@ -1,10 +1,12 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
 import { existsSync, writeFileSync } from "fs";
-import { join } from "path";
-import { env } from "../utils/env";
-import { InstanceCmdFactories } from "./instanceFactories";
-import { polling, sleep } from "./utils";
+import { dirname, join } from "path";
+import { env } from "../utils/env.js";
+import { InstanceCmdFactories } from "./instanceFactories.js";
+import { polling, createPrivateIdentity } from "./utils.js";
+import { buildContext } from "../../buildContext.js";
+import { fileURLToPath } from "url";
 
 type InstanceConfigType = {
   region?: string;
@@ -39,8 +41,12 @@ export class Instance implements IInstance {
   private privateKey: string;
   private publicDns: string | null;
   private liveUrl: string | null;
-
   private cmd: typeof InstanceCmdFactories;
+
+  static privateIdentityFile = join(
+    `${buildContext.buildDirectory}`,
+    "private"
+  );
 
   constructor({
     region = "us-east-1",
@@ -81,22 +87,8 @@ export class Instance implements IInstance {
         //@TODO: clean previous running docker images
         console.log("Instance already running for this PR 🏃");
 
-        // await this.getInstanceInfo({
-        //   name: instanceConfig.name,
-        // })
-        //   .then(async (res) => {
-        //     //skip creating new instance
-        //     await this.stopDockerContainer();
-        //     const ec2Instance = res.Reservations?.[0].Instances?.[0];
-        //     this.updateInstanceState({
-        //       awsUrl: ec2Instance?.PublicDnsName || null,
-        //       id: ec2Instance?.InstanceId || null,
-        //       name: instanceConfig.name || null,
-        //       ip: ec2Instance?.PublicIpAddress || null,
-        //     });
-        //   })
-        //   .catch((e) => console.error(e));
-        // start the same instance
+        //stop already running docker container
+        await this.stopDockerContainer();
         return;
       }
 
@@ -232,10 +224,18 @@ export class Instance implements IInstance {
     }
   }
 
-  async setUpStartUpScript() {
+  async mvStartScriptToServer() {
     try {
-      const currentDir = process.cwd();
-      const startScript = join(currentDir, "../../uploadScript/upload.sh");
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+
+      const currentDir = __dirname;
+      const startScriptPath = "../uploadScript/upload.sh";
+
+      const startScript = join(currentDir, startScriptPath);
+
+      if (!existsSync(startScript))
+        throw new Error("Docker Start script not found");
       await this.scp({ source: startScript, target: "/etc/prbranch" });
       //@TODO change the dockerimage tag based on the pullRequest and commit sha
       await this.ssh(`cd /etc/prbranch && sh upload.sh -a /app -g pullpreview`);
@@ -263,8 +263,12 @@ export class Instance implements IInstance {
   }) {
     const host = this.publicDns;
     const remoteUser = "ec2-user";
-    const tempPrivateKey = join(process.cwd(), "../../tmp/private");
+    const tempPrivateKey = Instance.privateIdentityFile;
+
+    await createPrivateIdentity(tempPrivateKey, this.privateKey);
+
     console.log("Starting to cpy files to server 📁 ---> 📂");
+
     await execa(
       "scp",
       [
@@ -303,15 +307,11 @@ export class Instance implements IInstance {
     const publicDns = this.publicDns;
     const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
+    const tempPrivateKey = Instance.privateIdentityFile;
+    await createPrivateIdentity(tempPrivateKey, privateKey);
 
-    const tempPrivateKey = join(process.cwd(), "../../tmp/private");
-
-    if (!existsSync(tempPrivateKey)) {
-      writeFileSync(tempPrivateKey, privateKey, { mode: "0600" });
-      console.log(`Private key saved to ${tempPrivateKey}`);
-    }
     const cmdToRun = `ssh ${
-      debug ? "-v" : ""
+      debug ? "-vvv" : ""
     } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
 
     const cpyFile = `cat ${file} | ${cmdToRun}`;

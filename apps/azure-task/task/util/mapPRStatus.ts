@@ -1,4 +1,4 @@
-import { PullRequestStatusEnum } from "../enum/PullRequestStatusEnum";
+import { PullRequestStatusEnum } from "../enum/PullRequestStatusEnum.js";
 
 export const mapPrStatusToText = {
   [PullRequestStatusEnum.Error]: "Error",

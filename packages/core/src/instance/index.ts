@@ -1,1 +1,0 @@
-export { Instance } from "./instance";

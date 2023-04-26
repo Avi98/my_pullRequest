@@ -43,3 +43,17 @@ export const sleep = (timeout = 2) => {
     }, 1000 * timeout)
   );
 };
+
+/**
+ * @TODO this depends on the tempPrivatePath. need to remove the dependency
+ * from build pipeline to implicitly generate the private key and use it
+ * @param tempPrivateKeyPath
+ * @param privateKey
+ * @returns
+ */
+export const createPrivateIdentity = async (
+  tempPrivateKeyPath: string,
+  privateKey?: string
+) => {
+  return tempPrivateKeyPath;
+};

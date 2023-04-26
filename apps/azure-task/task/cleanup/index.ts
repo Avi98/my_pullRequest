@@ -1,4 +1,4 @@
-import { Instance } from "@pr/core";
+import { Instance } from "../core/index.js";
 
 export class CleanUpLoseInstance {
   private killPRIds = [];
