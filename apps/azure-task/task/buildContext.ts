@@ -8,7 +8,7 @@ export const buildContext = {
     tl.getVariable("Build.Repository.ID") ||
     "a187c009-7402-429e-9111-a7791e589bed",
   prId: tl.getVariable("System.PullRequest.PullRequestId") || 46,
-  token: tl.getVariable("System.AccessToken") || env.pat,
+  token: env.pat || tl.getVariable("System.AccessToken"),
   orgUrl:
     tl.getVariable("System.CollectionUri") ||
     "https://dev.azure.com/9958703925dad",
