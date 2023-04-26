@@ -1,0 +1,24 @@
+{
+  "name": "@pr/azure-task",
+  "version": "1.0.0",
+  "description": "",
+  "main": ".dist/task/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --config nodemon.json",
+    "build": "tsc -p .",
+    "pack": "bash ../../scripts/pack-azure-task.sh"
+  },
+  "keywords": [],
+  "author": "avinash",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.282.0",
+    "@types/q": "^1.5.5",
+    "azure-devops-node-api": "^12.0.0",
+    "azure-pipelines-task-lib": "^4.3.1",
+    "dotenv": "^16.0.3",
+    "execa": "^7.1.0"
+  }
+}

@@ -1,10 +1,12 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
 import { existsSync, writeFileSync } from "fs";
-import { join } from "path";
-import { env } from "../utils/env";
-import { InstanceCmdFactories } from "./instanceFactories";
-import { polling, sleep } from "./utils";
+import { dirname, join } from "path";
+import { env } from "../utils/env.js";
+import { InstanceCmdFactories } from "./instanceFactories.js";
+import { polling, createPrivateIdentity } from "./utils.js";
+import { buildContext } from "../../buildContext.js";
+import { fileURLToPath } from "url";
 
 type InstanceConfigType = {
   region?: string;
@@ -24,8 +26,9 @@ type LaunchInstanceConfig = {
 
 type InitializeInstance = {
   name: string | null;
-  dns: string | null;
+  awsUrl: string | null;
   id: string | null;
+  ip: string | null;
 };
 interface IInstance {
   launch: (config: LaunchInstanceConfig) => void;
@@ -37,8 +40,13 @@ export class Instance implements IInstance {
   private semaphore: string;
   private privateKey: string;
   private publicDns: string | null;
-
+  private liveUrl: string | null;
   private cmd: typeof InstanceCmdFactories;
+
+  static privateIdentityFile = join(
+    `${buildContext.buildDirectory}`,
+    "private"
+  );
 
   constructor({
     region = "us-east-1",
@@ -51,6 +59,7 @@ export class Instance implements IInstance {
     this.instanceName = null;
     this.publicDns = null;
     this.privateKey = sshPrivateKey;
+    this.liveUrl = null;
 
     this.client = InstanceCmdFactories.createInstance({
       region,
@@ -74,24 +83,12 @@ export class Instance implements IInstance {
       keyName,
     } = instanceConfig;
     try {
-      if (await this.isRunning(name)) {
-        //clean previous running docker images
+      if (await this.hasDuplicateInstance(name)) {
+        //@TODO: clean previous running docker images
+        console.log("Instance already running for this PR 🏃");
 
-        await this.getInstanceInfo({
-          name: instanceConfig.name,
-        })
-          .then(async (res) => {
-            //skip creating new instance
-            await this.stopDockerContainer();
-            const oldInstance = res.Reservations?.[0].Instances?.[0];
-            this.initializeInstance({
-              dns: oldInstance?.PublicDnsName || null,
-              id: oldInstance?.InstanceId || null,
-              name: instanceConfig.name || null,
-            });
-          })
-          .catch((e) => console.error(e));
-        // start the same instance
+        //stop already running docker container
+        await this.stopDockerContainer();
         return;
       }
 
@@ -138,10 +135,14 @@ export class Instance implements IInstance {
           );
 
           const launchedInstance = instance.Instances?.at(0) || null;
-          this.initializeInstance({
-            dns: launchedInstance?.PublicDnsName || null,
+          console.log(
+            `instance state ${launchedInstance?.State?.Name} for InstanceName: ${name}, publicIp: ${launchedInstance?.PublicIpAddress} `
+          );
+          this.updateInstanceState({
+            awsUrl: launchedInstance?.PublicDnsName || null,
             id: launchedInstance?.InstanceId || null,
             name: instanceConfig.name || null,
+            ip: launchedInstance?.PublicIpAddress || null,
           });
 
           return instance.Instances?.at(0)?.InstanceId;
@@ -182,7 +183,7 @@ export class Instance implements IInstance {
     if (
       instanceName &&
       (await polling({
-        cb: async () => await this.isRunning(instanceName),
+        cb: async () => await this.hasDuplicateInstance(instanceName),
       }))
     ) {
       return true;
@@ -223,13 +224,18 @@ export class Instance implements IInstance {
     }
   }
 
-  async setUpStartUpScript() {
+  async mvStartScriptToServer() {
     try {
-      const currentDir = process.cwd();
-      const startScript = join(
-        currentDir,
-        "../core/src/uploadScript/upload.sh"
-      );
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+
+      const currentDir = __dirname;
+      const startScriptPath = "../uploadScript/upload.sh";
+
+      const startScript = join(currentDir, startScriptPath);
+
+      if (!existsSync(startScript))
+        throw new Error("Docker Start script not found");
       await this.scp({ source: startScript, target: "/etc/prbranch" });
       //@TODO change the dockerimage tag based on the pullRequest and commit sha
       await this.ssh(`cd /etc/prbranch && sh upload.sh -a /app -g pullpreview`);
@@ -238,6 +244,10 @@ export class Instance implements IInstance {
         cause: error,
       });
     }
+  }
+
+  get liveInstUrl() {
+    return this.liveUrl;
   }
 
   private async scp({
@@ -253,8 +263,12 @@ export class Instance implements IInstance {
   }) {
     const host = this.publicDns;
     const remoteUser = "ec2-user";
-    const tempPrivateKey = join(process.cwd(), "../../tmp/private");
+    const tempPrivateKey = Instance.privateIdentityFile;
+
+    await createPrivateIdentity(tempPrivateKey, this.privateKey);
+
     console.log("Starting to cpy files to server 📁 ---> 📂");
+
     await execa(
       "scp",
       [
@@ -293,15 +307,11 @@ export class Instance implements IInstance {
     const publicDns = this.publicDns;
     const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
+    const tempPrivateKey = Instance.privateIdentityFile;
+    await createPrivateIdentity(tempPrivateKey, privateKey);
 
-    const tempPrivateKey = join(process.cwd(), "../../tmp/private");
-
-    if (!existsSync(tempPrivateKey)) {
-      writeFileSync(tempPrivateKey, privateKey, { mode: "0600" });
-      console.log(`Private key saved to ${tempPrivateKey}`);
-    }
     const cmdToRun = `ssh ${
-      debug ? "-v" : ""
+      debug ? "-vvv" : ""
     } -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -i "${tempPrivateKey}" "${sshAddress}" "${cmd}"`;
 
     const cpyFile = `cat ${file} | ${cmdToRun}`;
@@ -331,36 +341,41 @@ export class Instance implements IInstance {
     }
   }
 
-  private initializeInstance(currentInstance: InitializeInstance) {
+  private updateInstanceState(currentInstance: InitializeInstance) {
     this.instanceName = currentInstance.name;
     this.launchedInstanceId = currentInstance.id;
-    this.publicDns = currentInstance.dns;
+    this.publicDns = currentInstance.awsUrl;
+    //change this once the dns is setup
+    this.liveUrl = `http://${currentInstance.ip}:3000`;
   }
 
-  private isRunning = async (name: string) => {
+  hasDuplicateInstance = async (name: string) => {
     let isRunning = false;
     const instanceId = this.launchedInstanceId;
-
-    console.log(`\nInstance with instanceId:${instanceId} running\n`);
     try {
       await this.getInstanceInfo({ id: instanceId || undefined, name })
         .then((res) => {
-          console.log(`checking instance ${instanceId} state`);
-          const instance = res.Reservations?.at(0);
-          instance?.Instances?.forEach((inst) => {
-            console.log(`instance state ${inst?.State?.Name}`);
-            if (
-              inst?.State?.Name &&
-              this.liveInstanceState(inst?.State?.Name)
-            ) {
-              //dns gets assigned only when the instance is live
+          console.log("Get instance res");
+          res?.forEach((inst) => {
+            const instanceNameTag = inst?.Tags?.filter(
+              (tag) => tag.Value === name
+            )[0];
 
-              if (inst.PublicDnsName && inst.InstanceId)
-                this.initializeInstance({
-                  dns: inst.PublicDnsName,
-                  id: inst.InstanceId,
-                  name: name,
-                });
+            //dns gets assigned only when the instance is live, so need to make sure instance is live
+            if (
+              inst?.PublicDnsName &&
+              inst.InstanceId &&
+              instanceNameTag?.Value
+            ) {
+              console.log(
+                `instance state ${inst?.State?.Name} for InstanceName: ${instanceNameTag?.Value} `
+              );
+              this.updateInstanceState({
+                awsUrl: inst.PublicDnsName,
+                id: inst.InstanceId,
+                name: name,
+                ip: inst.PublicIpAddress || null,
+              });
               isRunning = true;
             }
           });
@@ -375,10 +390,7 @@ export class Instance implements IInstance {
     return isRunning;
   };
 
-  private liveInstanceState = (state: string | InstanceStateName) =>
-    [InstanceStateName.running].includes(state as InstanceStateName);
-
-  private async getInstanceInfo(queryInstance: { id?: string; name: string }) {
+  async getInstanceInfo(queryInstance: { id?: string; name: string }) {
     const ids = queryInstance.id ? [queryInstance.id] : undefined;
     return await this.client
       .send(
@@ -389,11 +401,17 @@ export class Instance implements IInstance {
               Name: "tag:Name",
               Values: [queryInstance.name],
             },
+            {
+              Name: "instance-state-name",
+              Values: [InstanceStateName.running],
+            },
           ],
         })
       )
       .then((res) => {
-        return res;
+        return res.Reservations?.flatMap(
+          (reservation) => reservation.Instances
+        );
       })
       .catch((e) => {
         console.error(e);
