@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "build-release-task",
   "name": "manif",
-  "version": "0.0.63",
+  "version": "0.0.72",
   "publisher": "avinash-live-pr",
   "targets": [
     {
@@ -17,9 +17,6 @@
   "files": [
     {
       "path": "task"
-    },
-    {
-      "path": "uploadScript/upload.sh"
     }
   ],
   "links": {

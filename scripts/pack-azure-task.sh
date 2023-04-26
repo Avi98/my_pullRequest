@@ -13,7 +13,8 @@ echo "copying task to $distPath"
 cp -r node_modules  $distPath
 cp -r package.json  $distPath
 
-cp -r ../../uploadScript .dist
+# cpy bash script for starting docker in instance
+cp -r ../../uploadScript .dist/task/core
 cp -r images .dist
 
 cp vss-extension.json .dist

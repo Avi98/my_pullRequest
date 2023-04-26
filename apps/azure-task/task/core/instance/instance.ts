@@ -87,22 +87,8 @@ export class Instance implements IInstance {
         //@TODO: clean previous running docker images
         console.log("Instance already running for this PR 🏃");
 
-        // await this.getInstanceInfo({
-        //   name: instanceConfig.name,
-        // })
-        //   .then(async (res) => {
-        //     //skip creating new instance
-        //     await this.stopDockerContainer();
-        //     const ec2Instance = res.Reservations?.[0].Instances?.[0];
-        //     this.updateInstanceState({
-        //       awsUrl: ec2Instance?.PublicDnsName || null,
-        //       id: ec2Instance?.InstanceId || null,
-        //       name: instanceConfig.name || null,
-        //       ip: ec2Instance?.PublicIpAddress || null,
-        //     });
-        //   })
-        //   .catch((e) => console.error(e));
-        // start the same instance
+        //stop already running docker container
+        await this.stopDockerContainer();
         return;
       }
 
@@ -238,7 +224,7 @@ export class Instance implements IInstance {
     }
   }
 
-  async mvStartScriptToServer(startScriptPath = "../uploadScript/upload.sh") {
+  async mvStartScriptToServer() {
     try {
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = dirname(__filename);
@@ -248,7 +234,7 @@ export class Instance implements IInstance {
 
       const startScript = join(currentDir, startScriptPath);
 
-      if (!existsSync(startScriptPath))
+      if (!existsSync(startScript))
         throw new Error("Docker Start script not found");
       await this.scp({ source: startScript, target: "/etc/prbranch" });
       //@TODO change the dockerimage tag based on the pullRequest and commit sha
