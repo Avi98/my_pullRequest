@@ -1,0 +1,27 @@
+{
+  "name": "@pr/core",
+  "description": "",
+  "version": "0.0.1",
+  "main": ".dist/index.js",
+  "types": ".dist/index.d.ts",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    ".dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -p tsconfig.json",
+    "start:dev": "nodemon --config nodemon.json --inspect-brk src/index.ts"
+  },
+  "keywords": [],
+  "author": "avinash",
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.282.0",
+    "dotenv": "^16.0.3",
+    "execa": "^7.1.0"
+  },
+  "devDependencies": {
+    "tsconfig": "workspace:*"
+  }
+}

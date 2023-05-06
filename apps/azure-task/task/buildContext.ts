@@ -1,5 +1,5 @@
 import { join } from "path";
-import { env } from "./core/index.js";
+import { env } from "@pr/core";
 import tl from "azure-pipelines-task-lib";
 
 const isDev = env.isDev;
