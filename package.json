@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "dotenv turbo run build --skip-cache",
+    "clean:install": "bash ./scripts/clean.sh && pnpm install",
     "dev": "dotenv turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""

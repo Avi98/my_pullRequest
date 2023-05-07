@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import { env } from "./utils/env.js";
 import { Instance } from "./instance/index.js";
 import { LunchServer } from "./launchServer/index.js";

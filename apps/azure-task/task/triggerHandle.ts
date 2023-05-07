@@ -1,4 +1,4 @@
-import { Instance, LunchServer } from "./core/index.js";
+import { Instance, LunchServer } from "@pr/aws-core";
 import { ApiClient } from "./api/index.js";
 import type { Threads } from "./api/index.js";
 import { mapPrStatusToText } from "./util/mapPRStatus.js";

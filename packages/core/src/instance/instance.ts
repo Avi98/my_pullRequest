@@ -1,12 +1,12 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { env } from "../utils/env.js";
 import { InstanceCmdFactories } from "./instanceFactories.js";
 import { polling, createPrivateIdentity } from "./utils.js";
-import { buildContext } from "../../../../apps/azure-task/task/buildContext.js";
 import { fileURLToPath } from "url";
+import { buildContext } from "../launchServer/launchServer.js";
 
 type InstanceConfigType = {
   region?: string;

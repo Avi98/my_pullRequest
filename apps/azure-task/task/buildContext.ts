@@ -1,5 +1,5 @@
 import { join } from "path";
-import { env } from "@pr/core";
+import { env } from "@pr/aws-core";
 import tl from "azure-pipelines-task-lib";
 
 const isDev = env.isDev;
