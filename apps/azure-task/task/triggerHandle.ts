@@ -2,6 +2,7 @@ import { Instance, LunchServer } from "@pr/aws-core";
 import { ApiClient } from "./api/index.js";
 import type { Threads } from "./api/index.js";
 import { mapPrStatusToText } from "./util/mapPRStatus.js";
+import { castGitConfig } from "./util/castBuildConfig.js";
 import { BuildContextType, buildContext } from "./buildContext.js";
 
 class TriggerHandle {
@@ -20,7 +21,7 @@ class TriggerHandle {
   static async createTrigger() {
     const apiClient = await ApiClient.initializeApi();
     const ec2 = new Instance({});
-    const ec2Starter = new LunchServer(ec2);
+    const ec2Starter = new LunchServer(ec2, castGitConfig(buildContext));
 
     return new TriggerHandle(apiClient, buildContext, ec2Starter, ec2);
   }

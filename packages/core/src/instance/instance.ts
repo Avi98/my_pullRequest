@@ -6,11 +6,11 @@ import { env } from "../utils/env.js";
 import { InstanceCmdFactories } from "./instanceFactories.js";
 import { polling, createPrivateIdentity } from "./utils.js";
 import { fileURLToPath } from "url";
-import { buildContext } from "../launchServer/launchServer.js";
 
 type InstanceConfigType = {
   region?: string;
   sshPrivateKey?: string;
+  identityFilePath?: string;
 };
 
 type LaunchInstanceConfig = {
@@ -39,18 +39,15 @@ export class Instance implements IInstance {
   private instanceName: string | null;
   private semaphore: string;
   private privateKey: string;
+  private identityFilePath: string;
   private publicDns: string | null;
   private liveUrl: string | null;
   private cmd: typeof InstanceCmdFactories;
 
-  static privateIdentityFile = join(
-    `${buildContext.buildDirectory}`,
-    "private"
-  );
-
   constructor({
     region = "us-east-1",
     sshPrivateKey = env.sshKeys.privateKey,
+    identityFilePath,
   }: InstanceConfigType) {
     this.cmd = InstanceCmdFactories;
 
@@ -60,6 +57,7 @@ export class Instance implements IInstance {
     this.publicDns = null;
     this.privateKey = sshPrivateKey;
     this.liveUrl = null;
+    this.identityFilePath = identityFilePath || join(process.cwd(), "private");
 
     this.client = InstanceCmdFactories.createInstance({
       region,
@@ -263,7 +261,7 @@ export class Instance implements IInstance {
   }) {
     const host = this.publicDns;
     const remoteUser = "ec2-user";
-    const tempPrivateKey = Instance.privateIdentityFile;
+    const tempPrivateKey = this.identityFilePath;
 
     await createPrivateIdentity(tempPrivateKey, this.privateKey);
 
@@ -307,7 +305,7 @@ export class Instance implements IInstance {
     const publicDns = this.publicDns;
     const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
-    const tempPrivateKey = Instance.privateIdentityFile;
+    const tempPrivateKey = this.identityFilePath;
     await createPrivateIdentity(tempPrivateKey, privateKey);
 
     const cmdToRun = `ssh ${

@@ -1,65 +1,30 @@
 import { $, execa } from "execa";
 import { existsSync } from "fs";
+import { env } from "../utils/env.js";
 import { Instance } from "../instance/index.js";
 import { polling, sleep } from "../instance/utils.js";
-import { env } from "../utils/env.js";
-import { join } from "path";
-
-//
-const isDev = env.isDev;
+import { IGitConfig } from "../interface/IGitConfig.js";
 
 const tl = {
   getVariable: (name: string) => name,
 };
 
-export const buildContext = {
-  repoId:
-    tl.getVariable("Build.Repository.ID") ||
-    "a187c009-7402-429e-9111-a7791e589bed",
-  prId: tl.getVariable("System.PullRequest.PullRequestId") || 46,
-  token: env.pat || tl.getVariable("System.AccessToken"),
-  orgUrl:
-    tl.getVariable("System.CollectionUri") ||
-    "https://dev.azure.com/9958703925dad",
-  repoUrl:
-    tl.getVariable("Build.Repository.URI") ||
-    "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker",
-  projectName: tl.getVariable("System.TeamProject") || "bookshelf",
-  buildReason: tl.getVariable("Build.Reason") || "PullRequest",
-  targetBranch: tl.getVariable("System.PullRequest.targetBranchName") || "",
-  sourceBranch: tl.getVariable("System.PullRequest.SourceBranch") || "develop",
-  clonePath: isDev
-    ? join(process.cwd(), "../.dist/temp")
-    : tl.getVariable("Agent.TempDirectory"),
-  buildDirectory: tl.getVariable("Agent.BuildDirectory") || "",
-} as const;
-
-export type BuildContextType = typeof buildContext;
-
-const config = {
-  serverAppPath: "/etc/prbranch/app/app.tar.gz",
-  workingDir: buildContext.clonePath,
-  clonePath: `${buildContext.clonePath}/app`,
-  keyName: "my-proto-type-keyPair",
-  tarballFile: `${buildContext.clonePath}/app.tar.gz`,
-  sourceBranch: buildContext.sourceBranch,
-};
 export class LunchServer {
   instance: Instance;
 
-  constructor(ec2: Instance) {
+  constructor(ec2: Instance, private config: IGitConfig) {
     this.instance = ec2;
   }
 
   async run(cloneLink: string) {
     try {
       const dockerfilePaths = cloneLink;
-      const git = this.getGitUrl(dockerfilePaths, config.sourceBranch);
-      if (!config.clonePath) throw new Error("Clone Path not found");
+      const git = this.getGitUrl(dockerfilePaths, this.config.sourceBranch);
+      if (!this.config.clonePath) throw new Error("Clone Path not found");
 
-      console.log({ clone: config.clonePath });
-      await this.cloneRepo({ ...git, clonePath: config.clonePath });
-      await this.compressRepo(config.clonePath);
+      console.log({ clone: this.config.clonePath });
+      await this.cloneRepo({ ...git, clonePath: this.config.clonePath });
+      await this.compressRepo(this.config.clonePath);
 
       if (!env.securityGroup || !env.securityId || !env.keyName)
         throw new Error(
@@ -105,8 +70,8 @@ export class LunchServer {
 
         await sleep(5);
         await this.instance.cpyTarOnInstance(
-          `${config.tarballFile}`,
-          config.serverAppPath
+          `${this.config.tarballFile}`,
+          this.config.serverAppPath
         );
 
         await this.instance.mvStartScriptToServer();
@@ -159,7 +124,7 @@ export class LunchServer {
     console.log(
       `tar ${[
         "cfz",
-        `${config.tarballFile}`,
+        `${this.config.tarballFile}`,
         "--exclude",
         ".git",
         "-C",
@@ -170,7 +135,7 @@ export class LunchServer {
 
     await execa("tar", [
       "cfz",
-      `${config.tarballFile}`,
+      `${this.config.tarballFile}`,
       "--exclude",
       ".git",
       "-C",
