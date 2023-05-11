@@ -7,6 +7,7 @@
     "apps/*",
     "packages/*"
   ],
+  "preinstall": "npx only-allow pnpm",
   "scripts": {
     "build": "dotenv turbo run build --skip-cache",
     "clean:install": "bash ./scripts/clean.sh && pnpm install",

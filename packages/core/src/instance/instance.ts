@@ -11,6 +11,7 @@ type InstanceConfigType = {
   region?: string;
   sshPrivateKey?: string;
   identityFilePath?: string;
+  tempDir?: string;
 };
 
 type LaunchInstanceConfig = {
@@ -48,6 +49,7 @@ export class Instance implements IInstance {
     region = "us-east-1",
     sshPrivateKey = env.sshKeys.privateKey,
     identityFilePath,
+    tempDir,
   }: InstanceConfigType) {
     this.cmd = InstanceCmdFactories;
 

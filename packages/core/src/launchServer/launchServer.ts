@@ -9,11 +9,15 @@ const tl = {
   getVariable: (name: string) => name,
 };
 
+const DEFAULT_SERVER_APP_PATH = "/etc/prbranch/app/app.tar.gz";
 export class LunchServer {
   instance: Instance;
 
+  private readonly tarballFilePath: string;
+
   constructor(ec2: Instance, private config: IGitConfig) {
     this.instance = ec2;
+    this.tarballFilePath = `${config.buildDirectory}/app.tar.gz`;
   }
 
   async run(cloneLink: string) {
@@ -70,8 +74,8 @@ export class LunchServer {
 
         await sleep(5);
         await this.instance.cpyTarOnInstance(
-          `${this.config.tarballFile}`,
-          this.config.serverAppPath
+          this.tarballFilePath,
+          DEFAULT_SERVER_APP_PATH
         );
 
         await this.instance.mvStartScriptToServer();
@@ -124,7 +128,7 @@ export class LunchServer {
     console.log(
       `tar ${[
         "cfz",
-        `${this.config.tarballFile}`,
+        `${this.tarballFilePath}`,
         "--exclude",
         ".git",
         "-C",
@@ -135,7 +139,7 @@ export class LunchServer {
 
     await execa("tar", [
       "cfz",
-      `${this.config.tarballFile}`,
+      `${this.tarballFilePath}`,
       "--exclude",
       ".git",
       "-C",
