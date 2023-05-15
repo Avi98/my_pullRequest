@@ -1,0 +1,31 @@
+{
+  "name": "@pr/aws-core",
+  "description": "aws module for creating ec2 instances",
+  "version": "0.0.1",
+  "main": ".dist/index.cjs",
+  "source": "./src/index.ts",
+  "module": ".dist/index.mjs",
+  "type": "module",
+  "exports": {
+    "types": "./.dist/index.d.ts",
+    "require": "./.dist/index.js",
+    "default": "./.dist/index.mjs"
+  },
+  "types": ".dist/index.d.ts",
+  "license": "MIT",
+  "files": [
+    ".dist"
+  ],
+  "scripts": {
+    "build": "microbundle"
+  },
+  "keywords": [],
+  "author": "avinash",
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.282.0",
+    "execa": "^7.1.0"
+  },
+  "devDependencies": {
+    "microbundle": "^0.15.1"
+  }
+}

@@ -1,7 +1,8 @@
 import { TaskResult, setResult } from "azure-pipelines-task-lib";
 import { TriggerHandle } from "./triggerHandle.js";
 import { CleanUpLoseInstance } from "./cleanup/index.js";
-import { env } from "./core/index.js";
+import { Instance, LunchServer, env } from "@pr/aws-core";
+import { buildContext } from "./buildContext.js";
 
 const main = async () => {
   try {
@@ -12,7 +13,7 @@ const main = async () => {
     if (shouldCleanUp) {
       if (!hasLabel) {
         console.log(
-          `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️ `
+          `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️`
         );
       }
       return await trigger.cleanUp();
@@ -30,14 +31,11 @@ const main = async () => {
 };
 
 if (env.isDev) {
-  const core = await import("./core/index.js");
-  const dotenv = await import("dotenv");
+  const ec2 = new Instance({
+    identityFilePath: buildContext.buildDirectory,
+  });
+  const ec2Starter = new LunchServer(ec2, buildContext);
 
-  dotenv.config();
-  console.log({ env: process.env });
-
-  const ec2 = new core.Instance({});
-  const ec2Starter = new core.LunchServer(ec2);
   await ec2Starter
     .run(
       "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker"

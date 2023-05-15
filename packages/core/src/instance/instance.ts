@@ -1,16 +1,17 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { env } from "../utils/env.js";
 import { InstanceCmdFactories } from "./instanceFactories.js";
-import { polling, createPrivateIdentity } from "./utils.js";
-import { buildContext } from "../../buildContext.js";
+import { polling } from "./utils.js";
 import { fileURLToPath } from "url";
 
 type InstanceConfigType = {
   region?: string;
   sshPrivateKey?: string;
+  identityFilePath?: string;
+  tempDir?: string;
 };
 
 type LaunchInstanceConfig = {
@@ -38,28 +39,20 @@ export class Instance implements IInstance {
   private launchedInstanceId: string | null;
   private instanceName: string | null;
   private semaphore: string;
-  private privateKey: string;
+  private identityFilePath: string;
   private publicDns: string | null;
   private liveUrl: string | null;
   private cmd: typeof InstanceCmdFactories;
 
-  static privateIdentityFile = join(
-    `${buildContext.buildDirectory}`,
-    "private"
-  );
-
-  constructor({
-    region = "us-east-1",
-    sshPrivateKey = env.sshKeys.privateKey,
-  }: InstanceConfigType) {
+  constructor({ region = "us-east-1", identityFilePath }: InstanceConfigType) {
     this.cmd = InstanceCmdFactories;
 
     this.semaphore = "/etc/prbranch/ready";
     this.launchedInstanceId = null;
     this.instanceName = null;
     this.publicDns = null;
-    this.privateKey = sshPrivateKey;
     this.liveUrl = null;
+    this.identityFilePath = identityFilePath || join(process.cwd(), "private");
 
     this.client = InstanceCmdFactories.createInstance({
       region,
@@ -263,9 +256,7 @@ export class Instance implements IInstance {
   }) {
     const host = this.publicDns;
     const remoteUser = "ec2-user";
-    const tempPrivateKey = Instance.privateIdentityFile;
-
-    await createPrivateIdentity(tempPrivateKey, this.privateKey);
+    const tempPrivateKey = this.identityFilePath;
 
     console.log("Starting to cpy files to server 📁 ---> 📂");
 
@@ -305,10 +296,8 @@ export class Instance implements IInstance {
 
   private async ssh(cmd: string, file?: string, debug = false) {
     const publicDns = this.publicDns;
-    const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
-    const tempPrivateKey = Instance.privateIdentityFile;
-    await createPrivateIdentity(tempPrivateKey, privateKey);
+    const tempPrivateKey = this.identityFilePath;
 
     const cmdToRun = `ssh ${
       debug ? "-vvv" : ""

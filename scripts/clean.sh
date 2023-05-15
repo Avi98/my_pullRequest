@@ -1,10 +1,23 @@
 #!/bin/bash
 
-# This script removes all node_modules directories in the current directory and its subdirectories
+# Remove node_modules and .dist directories in the root directory
+rm -rf node_modules
+rm -rf .dist
+rm -rf .turbo
+rm -rf pnpm-lock.yaml
 
-echo "Cleaning node_modules..."
+# Recursively search for child directories that contain node_modules, turbo and .dist directories
+for dir in $(find . -name "node_modules" -type d -prune) ; do
+  echo "Removing $dir"
+  rm -rf $dir
+done
 
-# Find all directories named node_modules in the current directory and its subdirectories, then remove them
-find . -name "node_modules" -type d -exec rm -rf {} +
+for dir in $(find . -name ".turbo" -type d -prune) ; do
+  echo "Removing $dir"
+  rm -rf $dir
+done
 
-echo "Done!"
+for dir in $(find . -name ".dist" -type d -prune) ; do
+  echo "Removing $dir"
+  rm -rf $dir
+done
