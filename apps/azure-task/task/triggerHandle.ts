@@ -20,7 +20,9 @@ class TriggerHandle {
 
   static async createTrigger() {
     const apiClient = await ApiClient.initializeApi();
-    const ec2 = new Instance({});
+    const ec2 = new Instance({
+      identityFilePath: buildContext.defaultPrivatePath,
+    });
     const ec2Starter = new LunchServer(ec2, castGitConfig(buildContext));
 
     return new TriggerHandle(apiClient, buildContext, ec2Starter, ec2);

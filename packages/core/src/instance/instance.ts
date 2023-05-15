@@ -4,7 +4,7 @@ import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { env } from "../utils/env.js";
 import { InstanceCmdFactories } from "./instanceFactories.js";
-import { polling, createPrivateIdentity } from "./utils.js";
+import { polling } from "./utils.js";
 import { fileURLToPath } from "url";
 
 type InstanceConfigType = {
@@ -39,25 +39,18 @@ export class Instance implements IInstance {
   private launchedInstanceId: string | null;
   private instanceName: string | null;
   private semaphore: string;
-  private privateKey: string;
   private identityFilePath: string;
   private publicDns: string | null;
   private liveUrl: string | null;
   private cmd: typeof InstanceCmdFactories;
 
-  constructor({
-    region = "us-east-1",
-    sshPrivateKey = env.sshKeys.privateKey,
-    identityFilePath,
-    tempDir,
-  }: InstanceConfigType) {
+  constructor({ region = "us-east-1", identityFilePath }: InstanceConfigType) {
     this.cmd = InstanceCmdFactories;
 
     this.semaphore = "/etc/prbranch/ready";
     this.launchedInstanceId = null;
     this.instanceName = null;
     this.publicDns = null;
-    this.privateKey = sshPrivateKey;
     this.liveUrl = null;
     this.identityFilePath = identityFilePath || join(process.cwd(), "private");
 
@@ -265,8 +258,6 @@ export class Instance implements IInstance {
     const remoteUser = "ec2-user";
     const tempPrivateKey = this.identityFilePath;
 
-    await createPrivateIdentity(tempPrivateKey, this.privateKey);
-
     console.log("Starting to cpy files to server 📁 ---> 📂");
 
     await execa(
@@ -305,10 +296,8 @@ export class Instance implements IInstance {
 
   private async ssh(cmd: string, file?: string, debug = false) {
     const publicDns = this.publicDns;
-    const privateKey = this.privateKey;
     const sshAddress = `ec2-user@${publicDns}`;
     const tempPrivateKey = this.identityFilePath;
-    await createPrivateIdentity(tempPrivateKey, privateKey);
 
     const cmdToRun = `ssh ${
       debug ? "-vvv" : ""

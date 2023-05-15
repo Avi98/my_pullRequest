@@ -1,7 +1,9 @@
 import { join } from "path";
+import dotenv from "dotenv";
 import { env } from "@pr/aws-core";
 import tl from "azure-pipelines-task-lib";
 
+dotenv.config();
 const isDev = env.isDev;
 
 const dummyGitContext: BuildContextType = {
@@ -15,8 +17,9 @@ const dummyGitContext: BuildContextType = {
   buildReason: "PullRequest",
   targetBranch: "",
   sourceBranch: "develop",
-  clonePath: join(process.cwd(), "../.dist/temp"),
-  buildDirectory: "",
+  clonePath: join(process.cwd(), "../temp_app"),
+  buildDirectory: join(process.cwd(), "../temp_app"),
+  defaultPrivatePath: join(process.cwd(), "./temp_app/private_file"),
 };
 
 const azureGitContext = {
@@ -30,17 +33,23 @@ const azureGitContext = {
   buildReason: getVariable("Build.Reason"),
   targetBranch: getVariable("System.PullRequest.targetBranchName"),
   sourceBranch: getVariable("System.PullRequest.SourceBranch"),
-  clonePath: getVariable("Agent.TempDirectory"),
+  clonePath: `${getVariable("Agent.TempDirectory")}/temp_app`,
   buildDirectory: getVariable("Agent.BuildDirectory"),
+  // because the tempDirectory gets cleaned after every task
+  defaultPrivatePath: `${getVariable("Agent.BuildDirectory")}/temp_app`,
 } as const;
 
 function getVariable(variableName: string) {
+  if (isDev) return;
+
   const value = tl.getVariable(variableName);
   if (!value) throw new Error(`TaskVariable not found ${variableName}`);
 
   return value;
 }
 
-export const buildContext = isDev ? dummyGitContext : azureGitContext;
+export const buildContext = isDev
+  ? dummyGitContext
+  : (azureGitContext as BuildContextType);
 
 export type BuildContextType = Record<keyof typeof azureGitContext, string>;
