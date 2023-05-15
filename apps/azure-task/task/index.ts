@@ -1,6 +1,8 @@
 import { TaskResult, setResult } from "azure-pipelines-task-lib";
 import { TriggerHandle } from "./triggerHandle.js";
 import { CleanUpLoseInstance } from "./cleanup/index.js";
+import { Instance, LunchServer, env } from "@pr/aws-core";
+import { buildContext } from "./buildContext.js";
 
 const main = async () => {
   try {
@@ -11,7 +13,7 @@ const main = async () => {
     if (shouldCleanUp) {
       if (!hasLabel) {
         console.log(
-          `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️ `
+          `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️`
         );
       }
       return await trigger.cleanUp();
@@ -28,7 +30,22 @@ const main = async () => {
   }
 };
 
-main().finally(() => {
-  //@TODO: clean dead pr instances
-  new CleanUpLoseInstance().run();
-});
+if (env.isDev) {
+  const ec2 = new Instance({
+    identityFilePath: buildContext.buildDirectory,
+  });
+  const ec2Starter = new LunchServer(ec2, buildContext);
+
+  await ec2Starter
+    .run(
+      "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker"
+    )
+    .catch((e) => {
+      console.error(e);
+    });
+} else {
+  main().finally(() => {
+    //@TODO: clean dead pr instances
+    new CleanUpLoseInstance().run();
+  });
+}

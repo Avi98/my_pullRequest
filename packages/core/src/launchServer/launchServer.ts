@@ -12,7 +12,6 @@ const tl = {
 const DEFAULT_SERVER_APP_PATH = "/etc/prbranch/app/app.tar.gz";
 export class LunchServer {
   instance: Instance;
-
   private readonly tarballFilePath: string;
 
   constructor(ec2: Instance, private config: IGitConfig) {
@@ -117,12 +116,6 @@ export class LunchServer {
 
   private async compressRepo(repoPath: string) {
     console.log("Compressing new dir");
-    const whoami = await $`whoami`;
-    console.log({ whoami: whoami.stdout });
-    const isDir = await $`ls ${repoPath}`;
-    console.log({ isDir });
-    const files = await $`ls -ld ${repoPath}`;
-    console.log({ files });
 
     console.log("cmd running");
     console.log(
