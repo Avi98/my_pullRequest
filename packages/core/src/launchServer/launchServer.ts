@@ -25,7 +25,6 @@ export class LunchServer {
       const git = this.getGitUrl(dockerfilePaths, this.config.sourceBranch);
       if (!this.config.clonePath) throw new Error("Clone Path not found");
 
-      console.log({ clone: this.config.clonePath });
       await this.cloneRepo({ ...git, clonePath: this.config.clonePath });
       await this.compressRepo(this.config.clonePath);
 
@@ -37,7 +36,6 @@ export class LunchServer {
       // launch instance
       await this.instance.launch({
         name: git.branch,
-        sshPublicKey: env.sshKeys.publicKey,
         keyName: env.keyName,
         securityGroupId: env.securityId,
         securityGroupName: env.securityGroup,
