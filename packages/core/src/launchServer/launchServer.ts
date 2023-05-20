@@ -9,7 +9,7 @@ const tl = {
   getVariable: (name: string) => name,
 };
 
-const DEFAULT_SERVER_APP_PATH = "/etc/prbranch/app/app.tar.gz";
+const DEFAULT_SERVER_APP_PATH = "/etc/prbranch/app";
 export class LunchServer {
   instance: Instance;
   private readonly tarballFilePath: string;
@@ -25,7 +25,6 @@ export class LunchServer {
       const git = this.getGitUrl(dockerfilePaths, this.config.sourceBranch);
       if (!this.config.clonePath) throw new Error("Clone Path not found");
 
-      console.log({ clone: this.config.clonePath });
       await this.cloneRepo({ ...git, clonePath: this.config.clonePath });
       await this.compressRepo(this.config.clonePath);
 
@@ -37,7 +36,6 @@ export class LunchServer {
       // launch instance
       await this.instance.launch({
         name: git.branch,
-        sshPublicKey: env.sshKeys.publicKey,
         keyName: env.keyName,
         securityGroupId: env.securityId,
         securityGroupName: env.securityGroup,
@@ -54,15 +52,11 @@ export class LunchServer {
           .then(async () => {
             //instance after starting tasks some time to start sshd
             await sleep(5);
-            try {
-              await polling({
-                maxRetries: 3,
-                cb: () => this.instance.verifySshConnection(),
-              });
-              console.log("\n SSH connection established 🎉 \n");
-            } catch (error) {
-              throw error;
-            }
+            await polling({
+              maxRetries: 3,
+              cb: () => this.instance.verifySshConnection(),
+            });
+            console.log("\n SSH connection established 🎉 \n");
           })
           .catch((e) => {
             throw new Error("SSH connection failed aborting... ");
@@ -144,6 +138,7 @@ export class LunchServer {
         throw new Error("File compress failed", { cause: e });
       });
   }
+
   private async removeTempAppDir(tempDir: string) {
     if (existsSync(tempDir)) {
       await execa("rm", ["-rf", tempDir])
@@ -157,11 +152,6 @@ export class LunchServer {
       console.log("temp not found");
     }
   }
-
-  // extractRepo(path: string) {
-  //   const opStream = createReadStream(path).pipe(createGzip());
-  //   opStream.pipe(createWriteStream(config.clonePath));
-  // }
 
   private getGitUrl(appPath: string, sourceBranch = "develop") {
     const hasHttpRegEx = /^https?/;

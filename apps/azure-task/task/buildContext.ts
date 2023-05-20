@@ -19,7 +19,7 @@ const dummyGitContext: BuildContextType = {
   sourceBranch: "develop",
   clonePath: join(process.cwd(), "../temp_app"),
   buildDirectory: join(process.cwd(), "../temp_app"),
-  defaultPrivatePath: join(process.cwd(), "./temp_app/private_file"),
+  defaultPrivatePath: join(process.cwd(), "private_file"),
 };
 
 const azureGitContext = {
@@ -36,7 +36,7 @@ const azureGitContext = {
   clonePath: `${getVariable("Agent.TempDirectory")}/temp_app`,
   buildDirectory: getVariable("Agent.BuildDirectory"),
   // because the tempDirectory gets cleaned after every task
-  defaultPrivatePath: `${getVariable("Agent.BuildDirectory")}/temp_app`,
+  defaultPrivatePath: `${getVariable("Agent.TempDirectory")}/private_file`,
 } as const;
 
 function getVariable(variableName: string) {

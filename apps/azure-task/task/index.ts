@@ -32,7 +32,8 @@ const main = async () => {
 
 if (env.isDev) {
   const ec2 = new Instance({
-    identityFilePath: buildContext.buildDirectory,
+    identityFilePath: buildContext.defaultPrivatePath,
+    sshPrivateKey: env.sshKeys.privateKey,
   });
   const ec2Starter = new LunchServer(ec2, buildContext);
 

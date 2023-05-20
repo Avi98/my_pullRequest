@@ -1,4 +1,4 @@
-import { Instance, LunchServer } from "@pr/aws-core";
+import { Instance, LunchServer, env } from "@pr/aws-core";
 import { ApiClient } from "./api/index.js";
 import type { Threads } from "./api/index.js";
 import { mapPrStatusToText } from "./util/mapPRStatus.js";
@@ -22,6 +22,7 @@ class TriggerHandle {
     const apiClient = await ApiClient.initializeApi();
     const ec2 = new Instance({
       identityFilePath: buildContext.defaultPrivatePath,
+      sshPrivateKey: env.sshKeys.privateKey,
     });
     const ec2Starter = new LunchServer(ec2, castGitConfig(buildContext));
 
