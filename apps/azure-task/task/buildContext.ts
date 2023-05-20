@@ -36,7 +36,7 @@ const azureGitContext = {
   clonePath: `${getVariable("Agent.TempDirectory")}/temp_app`,
   buildDirectory: getVariable("Agent.BuildDirectory"),
   // because the tempDirectory gets cleaned after every task
-  defaultPrivatePath: `${getVariable("Agent.BuildDirectory")}/private_file`,
+  defaultPrivatePath: `${getVariable("Agent.TempDirectory")}/private_file`,
 } as const;
 
 function getVariable(variableName: string) {
