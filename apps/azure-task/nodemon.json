@@ -4,7 +4,7 @@
   "ignore": [".git", "node_modules/", "dist/", "coverage/"],
   "watch": ["task/"],
 
-  "exec": "tsc -p . && node .dist/task/index.js",
+  "exec": "tsc -p . && bash ../../scripts/dev.sh && node .dist/task/index.js",
   "env": {
     "NODE_ENV": "develop"
   },
