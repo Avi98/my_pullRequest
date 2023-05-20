@@ -1,8 +1,7 @@
 import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
 import { existsSync } from "fs";
-import { dirname, join, resolve } from "path";
-import { env } from "../utils/env.js";
+import { dirname, resolve } from "path";
 import { InstanceCmdFactories } from "./instanceFactories.js";
 import { createPrivateKeyFile, polling } from "./utils.js";
 import { fileURLToPath } from "url";
@@ -241,9 +240,6 @@ export class Instance implements IInstance {
 
   async mvStartScriptToServer() {
     try {
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = dirname(__filename);
-
       const startScript = this.getStartUpScript();
       console.log({ startScript });
 
@@ -263,7 +259,7 @@ export class Instance implements IInstance {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
 
-    return resolve(__dirname, "../../core/upload.sh");
+    return resolve(__dirname, "../../../../core/upload.sh");
   }
 
   get liveInstUrl() {
