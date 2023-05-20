@@ -1,4 +1,4 @@
-import { Instance } from "../core/index.js";
+import { Instance } from "@pr/aws-core";
 
 export class CleanUpLoseInstance {
   private killPRIds = [];

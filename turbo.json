@@ -12,6 +12,14 @@
     "dev": {
       "dependsOn": ["^build"]
     },
+    "@pr/azure-task#pack:v1": {
+      "dependsOn": [],
+      "cache": false
+    },
+    "@pr/azure-task#pack:v2": {
+      "dependsOn": [],
+      "cache": false
+    },
     "test": {}
   }
 }

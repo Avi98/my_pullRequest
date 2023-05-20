@@ -7,8 +7,12 @@
     "apps/*",
     "packages/*"
   ],
+  "preinstall": "npx only-allow pnpm",
   "scripts": {
     "build": "dotenv turbo run build --skip-cache",
+    "pack:Azure:v1": "dotenv turbo run @pr/azure-task#pack:v1",
+    "pack:Azure:v2": "dotenv turbo run @pr/azure-task#pack:v2",
+    "clean:install": "bash ./scripts/clean.sh && pnpm install",
     "dev": "dotenv turbo run dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
