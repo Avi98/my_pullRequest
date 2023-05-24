@@ -35,13 +35,8 @@ export class LunchServer {
 
       // launch instance
       await this.instance.launch({
-        name: git.branch,
+        name: `${this.config.prId}-${git.branch}`,
         keyName: env.keyName,
-        securityGroupId: env.securityId,
-        securityGroupName: env.securityGroup,
-        imageId: env.imageId,
-        imageType: env.imageType,
-        instanceType: env.imageType,
       });
 
       await sleep(5);

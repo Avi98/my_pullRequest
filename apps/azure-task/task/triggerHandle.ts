@@ -18,11 +18,16 @@ class TriggerHandle {
     private ec2: Instance
   ) {}
 
-  static async createTrigger() {
+  static async create() {
     const apiClient = await ApiClient.initializeApi();
     const ec2 = new Instance({
       identityFilePath: buildContext.defaultPrivatePath,
       sshPrivateKey: env.sshKeys.privateKey,
+      securityGroupId: env.securityId,
+      securityGroupName: env.securityGroup,
+      imageId: env.imageId || "ami-02f3f602d23f1659d",
+      imageType: env.imageType || "t2.micro",
+      region: env?.region || "us-east-1",
     });
     const ec2Starter = new LunchServer(ec2, castGitConfig(buildContext));
 

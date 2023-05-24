@@ -7,19 +7,18 @@ import { createPrivateKeyFile, polling } from "./utils.js";
 import { fileURLToPath } from "url";
 
 type InstanceConfigType = {
-  region?: string;
-  tempDir?: string;
   sshPrivateKey: string;
   identityFilePath: string;
+  //instance
+  region: string;
+  imageId: string;
+  imageType: string;
+  securityGroupId: string;
+  securityGroupName: string;
 };
 
 type LaunchInstanceConfig = {
   name: string;
-  instanceType?: string;
-  imageId?: string;
-  imageType?: string;
-  securityGroupId: string;
-  securityGroupName: string;
   keyName: string;
 };
 
@@ -41,15 +40,31 @@ export class Instance implements IInstance {
   private privateFile: string;
   private publicDns: string | null;
   private liveUrl: string | null;
+  private instanceRegion: string;
   private cmd: typeof InstanceCmdFactories;
+  private imageId: string;
+  private imageType: string;
+  private securityGroupId: string;
+  private securityGroupName: string;
+
+  private static RUNNING_INSTANCE_CODE = "16";
 
   constructor({
-    region = "us-east-1",
+    region,
     identityFilePath,
     sshPrivateKey,
+    imageId,
+    imageType,
+    securityGroupId,
+    securityGroupName,
   }: InstanceConfigType) {
     this.cmd = InstanceCmdFactories;
 
+    this.imageId = imageId;
+    this.imageType = imageType;
+    this.securityGroupId = securityGroupId;
+    this.securityGroupName = securityGroupName;
+    this.instanceRegion = region;
     this.semaphore = "/etc/prbranch/ready";
     this.launchedInstanceId = null;
     this.instanceName = null;
@@ -65,6 +80,37 @@ export class Instance implements IInstance {
     });
   }
 
+  async getAllRunningInstance() {
+    const runningInstanceCmd = {
+      Filters: [
+        {
+          Name: "availability-zone",
+          Values: [this.instanceRegion],
+        },
+        {
+          Name: "image-id",
+          Values: [this.imageId],
+        },
+        {
+          Name: "instance-type",
+          Values: [this.imageType],
+        },
+        {
+          Name: "instance-state-code",
+          Values: [Instance.RUNNING_INSTANCE_CODE],
+        },
+      ],
+    };
+
+    try {
+      return await this.client.send(
+        this.cmd.describeInstance(runningInstanceCmd)
+      );
+    } catch (error) {
+      throw new Error("No instance found");
+    }
+  }
+
   /**
    * checks if the instance already exsits.
    * if not exits create new instance should be created
@@ -73,14 +119,7 @@ export class Instance implements IInstance {
    * @param instanceConfig
    */
   async launch(instanceConfig: LaunchInstanceConfig) {
-    const {
-      name,
-      imageId = "ami-02f3f602d23f1659d",
-      imageType = "t2.micro",
-      securityGroupId,
-      securityGroupName,
-      keyName,
-    } = instanceConfig;
+    const { name, keyName } = instanceConfig;
     try {
       const hasInstance = await this.hasDuplicateInstance(name);
       if (hasInstance) {
@@ -109,10 +148,10 @@ export class Instance implements IInstance {
               MaxCount: 1,
               MinCount: 1,
               UserData: bufferString,
-              ImageId: imageId,
-              InstanceType: imageType,
-              SecurityGroupIds: [securityGroupId],
-              SecurityGroups: [securityGroupName],
+              ImageId: this.imageId,
+              InstanceType: this.imageType,
+              SecurityGroupIds: [this.securityGroupId],
+              SecurityGroups: [this.securityGroupName],
               KeyName: keyName,
               TagSpecifications: [
                 {
