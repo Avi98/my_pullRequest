@@ -1,10 +1,11 @@
-import { EC2Client, InstanceStateName } from "@aws-sdk/client-ec2";
+import { EC2Client, InstanceStateName, Reservation } from "@aws-sdk/client-ec2";
 import { $, execa } from "execa";
 import { existsSync } from "fs";
 import { dirname, resolve } from "path";
 import { InstanceCmdFactories } from "./instanceFactories.js";
 import { createPrivateKeyFile, polling } from "./utils.js";
 import { fileURLToPath } from "url";
+import { env } from "../index.js";
 
 type InstanceConfigType = {
   sshPrivateKey: string;
@@ -80,13 +81,20 @@ export class Instance implements IInstance {
     });
   }
 
+  private getInstance = (instances: Required<Reservation["Instances"]>) =>
+    instances
+      ? (instances
+          .map((instance) =>
+            Boolean(instance?.Tags?.length)
+              ? { name: instance.Tags!.at(0)?.Value!, id: instance.InstanceId! }
+              : null
+          )
+          .filter(Boolean) as { name: string; id: string }[])
+      : null;
+
   async getAllRunningInstance() {
     const runningInstanceCmd = {
       Filters: [
-        {
-          Name: "availability-zone",
-          Values: [this.instanceRegion],
-        },
         {
           Name: "image-id",
           Values: [this.imageId],
@@ -103,9 +111,24 @@ export class Instance implements IInstance {
     };
 
     try {
-      return await this.client.send(
-        this.cmd.describeInstance(runningInstanceCmd)
-      );
+      return await this.client
+        .send(this.cmd.describeInstance(runningInstanceCmd))
+        .then((instanceRes) => {
+          const instance = instanceRes.Reservations?.map((res) =>
+            res.Instances ? this.getInstance(res.Instances) : null
+          )
+            .flat()
+            .filter(Boolean);
+          console.log({ instanceRes });
+          if (!instance?.length) null;
+          return instance! as { name: string; id: string }[];
+        })
+        .catch((e) => {
+          if (env.isDev) {
+            throw e;
+          }
+          return [];
+        });
     } catch (error) {
       throw new Error("No instance found");
     }
@@ -206,7 +229,7 @@ export class Instance implements IInstance {
         })
       );
     } catch (error) {
-      throw new Error("Unable to delete instance");
+      throw new Error("Unable to delete instance", { cause: error });
     }
   }
 

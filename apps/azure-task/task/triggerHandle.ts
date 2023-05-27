@@ -131,7 +131,7 @@ class TriggerHandle {
 
   private async prStatus() {
     try {
-      const pr = await this.apiClient.getPR();
+      const pr = await this.apiClient.getCurrentPR();
 
       if (pr.status === undefined)
         throw new Error("TRIGGER_HANDLE: PR Status not found");
@@ -142,8 +142,10 @@ class TriggerHandle {
     }
   }
 
-  async cleanUp() {
+  async cleanUpLoseInstance() {
     try {
+      const allLiveInstance = await this.ec2.getAllRunningInstance();
+      console.log({ allLiveInstance });
       if (!"develop")
         throw new Error(
           "CLEAN_UP: instance name not provided for destroying instance"
@@ -160,7 +162,6 @@ class TriggerHandle {
 
       if (!instance) throw new Error("CLEAN_UP: instance not found");
 
-      console.log({ instance });
       await this.ec2.deleteInstance(
         instance.map((ec2) =>
           Boolean(ec2?.InstanceId) ? ec2!.InstanceId : ""
