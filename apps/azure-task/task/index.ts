@@ -6,47 +6,53 @@ import { buildContext } from "./buildContext.js";
 
 const main = async () => {
   try {
-    const trigger = await TriggerHandle.createTrigger();
+    const trigger = await TriggerHandle.create();
     const hasLabel = await trigger.hasTriggerLabel();
     const shouldCleanUp = (await trigger.isPRMerged()) || !hasLabel;
 
-    if (shouldCleanUp) {
-      if (!hasLabel) {
-        console.log(
-          `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️`
-        );
-      }
-      return await trigger.cleanUp();
-    }
+    //return trigger for clean up
+    if (shouldCleanUp) return trigger;
+    if (!hasLabel) return trigger;
 
     console.log(
       `Found ${TriggerHandle.TRIGGER_LABEL} creating the updated PR preview link 🚀 `
     );
+    await trigger.createLivePR();
 
-    return await trigger.createLivePR();
+    return trigger;
   } catch (error: any) {
     console.error(error);
-    setResult(TaskResult.Failed, error.message);
+    throw error;
   }
 };
 
-if (env.isDev) {
+if (env.isDev && env.git?.remote_url) {
   const ec2 = new Instance({
     identityFilePath: buildContext.defaultPrivatePath,
     sshPrivateKey: env.sshKeys.privateKey,
+    securityGroupId: env.securityId,
+    securityGroupName: env.securityGroup,
+    imageId: env.imageId || "ami-02f3f602d23f1659d",
+    imageType: env.imageType || "t2.micro",
+    region: env?.region || "us-east-1",
   });
   const ec2Starter = new LunchServer(ec2, buildContext);
-
-  await ec2Starter
-    .run(
-      "https://9958703925dad@dev.azure.com/9958703925dad/bookshelf/_git/Next-docker"
-    )
-    .catch((e) => {
-      console.error(e);
-    });
-} else {
-  main().finally(() => {
-    //@TODO: clean dead pr instances
-    new CleanUpLoseInstance().run();
+  await ec2Starter.run(env.git.remote_url).catch((e) => {
+    console.error(e);
   });
+
+  const cleanUp = new CleanUpLoseInstance(ec2);
+  await cleanUp.run();
+} else {
+  main()
+    .then((trigger) => {
+      //clean ups
+      console.log(
+        `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️`
+      );
+      trigger?.cleanUpLoseInstance();
+    })
+    .catch((e) => {
+      setResult(TaskResult.Failed, e.message);
+    });
 }

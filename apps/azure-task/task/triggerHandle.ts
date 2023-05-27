@@ -18,11 +18,16 @@ class TriggerHandle {
     private ec2: Instance
   ) {}
 
-  static async createTrigger() {
+  static async create() {
     const apiClient = await ApiClient.initializeApi();
     const ec2 = new Instance({
       identityFilePath: buildContext.defaultPrivatePath,
       sshPrivateKey: env.sshKeys.privateKey,
+      securityGroupId: env.securityId,
+      securityGroupName: env.securityGroup,
+      imageId: env.imageId || "ami-02f3f602d23f1659d",
+      imageType: env.imageType || "t2.micro",
+      region: env?.region || "us-east-1",
     });
     const ec2Starter = new LunchServer(ec2, castGitConfig(buildContext));
 
@@ -126,7 +131,7 @@ class TriggerHandle {
 
   private async prStatus() {
     try {
-      const pr = await this.apiClient.getPR();
+      const pr = await this.apiClient.getCurrentPR();
 
       if (pr.status === undefined)
         throw new Error("TRIGGER_HANDLE: PR Status not found");
@@ -137,8 +142,10 @@ class TriggerHandle {
     }
   }
 
-  async cleanUp() {
+  async cleanUpLoseInstance() {
     try {
+      const allLiveInstance = await this.ec2.getAllRunningInstance();
+      console.log({ allLiveInstance });
       if (!"develop")
         throw new Error(
           "CLEAN_UP: instance name not provided for destroying instance"
@@ -155,7 +162,6 @@ class TriggerHandle {
 
       if (!instance) throw new Error("CLEAN_UP: instance not found");
 
-      console.log({ instance });
       await this.ec2.deleteInstance(
         instance.map((ec2) =>
           Boolean(ec2?.InstanceId) ? ec2!.InstanceId : ""

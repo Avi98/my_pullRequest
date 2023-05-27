@@ -28,7 +28,6 @@ const azureGitContext = {
   token: env.pat || getVariable("System.AccessToken"),
   orgUrl: getVariable("System.CollectionUri"),
   repoUrl: getVariable("Build.Repository.URI"),
-
   projectName: getVariable("System.TeamProject"),
   buildReason: getVariable("Build.Reason"),
   targetBranch: getVariable("System.PullRequest.targetBranchName"),

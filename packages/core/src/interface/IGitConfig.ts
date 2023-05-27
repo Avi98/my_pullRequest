@@ -6,4 +6,5 @@ export interface IGitConfig {
   clonePath: string;
   buildDirectory: string;
   sourceBranch: string;
+  prId: string;
 }

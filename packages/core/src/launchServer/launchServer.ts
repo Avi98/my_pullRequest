@@ -35,23 +35,18 @@ export class LunchServer {
 
       // launch instance
       await this.instance.launch({
-        name: git.branch,
+        name: `${this.config.prId}-${git.branch}`,
         keyName: env.keyName,
-        securityGroupId: env.securityId,
-        securityGroupName: env.securityGroup,
-        imageId: env.imageId,
-        imageType: env.imageType,
-        instanceType: env.imageType,
       });
 
-      await sleep(5);
+      await sleep(10);
 
       try {
         await this.instance
           .waitUntilInstance()
           .then(async () => {
             //instance after starting tasks some time to start sshd
-            await sleep(5);
+            await sleep(10);
             await polling({
               maxRetries: 3,
               cb: () => this.instance.verifySshConnection(),
