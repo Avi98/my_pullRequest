@@ -39,14 +39,14 @@ export class LunchServer {
         keyName: env.keyName,
       });
 
-      await sleep(5);
+      await sleep(10);
 
       try {
         await this.instance
           .waitUntilInstance()
           .then(async () => {
             //instance after starting tasks some time to start sshd
-            await sleep(5);
+            await sleep(10);
             await polling({
               maxRetries: 3,
               cb: () => this.instance.verifySshConnection(),

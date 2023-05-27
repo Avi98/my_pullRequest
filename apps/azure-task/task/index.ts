@@ -41,8 +41,8 @@ if (env.isDev && env.git?.remote_url) {
     console.error(e);
   });
 
-  // const cleanUp = new CleanUpLoseInstance(ec2);
-  // await cleanUp.run();
+  const cleanUp = new CleanUpLoseInstance(ec2);
+  await cleanUp.run();
 } else {
   main()
     .then((trigger) => {

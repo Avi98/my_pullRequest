@@ -42,7 +42,7 @@ export const polling = async ({
       result = false;
       break;
     }
-    await new Promise((res) => setTimeout(res, interval * 1000));
+    await new Promise((res) => setTimeout(res, (interval + retires) * 1000));
   }
   return result;
 };
@@ -62,11 +62,12 @@ export const createPrivateKeyFile = (
   fileName: string
 ): string => {
   const privateFilePath = join(filePath, fileName);
+  const testKey = ``;
 
   createPrivateKey(privateFilePath);
   try {
     if (privateFilePath && createDir(filePath)) {
-      const cleanedPrivateKey = sshpk.parsePrivateKey(privateKey);
+      const cleanedPrivateKey = sshpk.parsePrivateKey(testKey);
       writeFileSync(privateFilePath, cleanedPrivateKey.toString("ssh-private"));
 
       chmodSync(privateFilePath, 0o600);

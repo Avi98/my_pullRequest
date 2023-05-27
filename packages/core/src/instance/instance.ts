@@ -119,7 +119,6 @@ export class Instance implements IInstance {
           )
             .flat()
             .filter(Boolean);
-          console.log({ instanceRes });
           if (!instance?.length) null;
           return instance! as { name: string; id: string }[];
         })
