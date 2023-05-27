@@ -16,11 +16,15 @@ const castEnv = <T = string>({
 export const env = {
   imageId: process.env.IMAGE_ID,
   imageType: process.env.IMAGE_TYPE,
-  securityId: process.env.SG_ID,
-  securityGroup: process.env.SG,
+  region: process.env.REGION,
+  securityId: castEnv({ env: process.env.SG_ID, name: "SG_ID" }),
+  securityGroup: castEnv({ env: process.env.SG, name: "SG" }),
   keyName: process.env.KEY_NAME,
   pat: process.env.PAT,
   isDev: process.env?.NODE_ENV === "develop",
+  git: {
+    remote_url: process.env.REMOTE_REPO,
+  },
   sshKeys: {
     publicKey: castEnv({
       env: process.env.SSH_PUBLIC_KEY,

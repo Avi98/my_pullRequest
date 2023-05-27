@@ -10,5 +10,6 @@ export const castGitConfig = (buildContext: BuildContextType): IGitConfig => {
     repoUrl: buildContext.repoUrl,
     sourceBranch: buildContext.sourceBranch,
     targetBranch: buildContext.targetBranch,
+    prId: buildContext.prId,
   };
 };
