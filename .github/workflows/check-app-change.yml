@@ -1,0 +1,22 @@
+name: identify which app changed
+on:
+  push:
+    branches:
+      - main
+      - "releases/**"
+
+jobs:
+  identify-changed-apps:
+    runs-on: ubuntu-latest
+    
+    name: trigger-changed-app
+    env:
+      URBO_RUN_FILTER: ${{ github.event_name == 'pull_request' && '...[origin/main]' || '...[HEAD^]' }}
+      
+     outputs:
+      changed-app: ${{ steps.changed-app.outputs.result }}
+      changed-docs: ${{ steps.changed-docs.outputs.result }}
+
+      steps:
+        name: build-workflow
+        uses: .github/actions/.build.yml

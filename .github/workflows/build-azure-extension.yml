@@ -1,0 +1,28 @@
+name: build-test-azure-extension
+on:
+  pull_request_target:
+    branches: [develop]
+
+jobs:
+  builds:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [15]
+    steps:
+      - name: build workflow
+        uses: .github/actions/build.yml
+
+      - name: pack task V1
+        run: pnpm turbo run pack:Azure:v1
+
+      - name: pack task V2
+        run: pnpm turbo run pack:Azure:v2
+
+      - name: upload coverage reports to codcov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      # pack azure-devops-task
+      # create artifact

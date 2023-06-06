@@ -25,4 +25,4 @@ cd $distPath && npm i && cd -
 
 NODE_ENV="prod"
 # change dir to .dist and then only run tfx pack cmd
-cd .dist && tfx extension create --manifest-globs && cd -
+cd .dist && npx npx tfx-cli extension create --manifest-globs && npx tfx-cli isvalid && cd -
