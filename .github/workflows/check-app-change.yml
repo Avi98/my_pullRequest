@@ -1,22 +1,52 @@
 name: identify which app changed
 on:
-  push:
-    branches:
-      - main
-      - "releases/**"
+  workflow_call:
+    outputs:
+      changed_packages:
+        description: "Stringfied JSON array of changed packages in changeset"
+        value: ${{ jobs.itendtify.outputs.changed_packages }}
+      azure_extension_changed:
+        description: "Identifies weather the azure_extension needs to deploy"
+        value: ${{ jobs.identify.outputs.api_changed }}
+      # todo add more apps changed identifier here as more apps gets added
 
 jobs:
-  identify-changed-apps:
+  identify:
     runs-on: ubuntu-latest
-    
-    name: trigger-changed-app
     env:
-      URBO_RUN_FILTER: ${{ github.event_name == 'pull_request' && '...[origin/main]' || '...[HEAD^]' }}
-      
-     outputs:
-      changed-app: ${{ steps.changed-app.outputs.result }}
-      changed-docs: ${{ steps.changed-docs.outputs.result }}
+      TURBO_REF_FILTER: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 
-      steps:
-        name: build-workflow
-        uses: .github/actions/.build.yml
+    outputs:
+      azure_changed: ${{ steps.azure_changed.outputs.result }}
+      aws_core_changed: ${{ steps.aws_core_changed.outputs.result }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: changed
+        id: changeset
+        run: |
+          echo 'result<<CHANGESET_DELIMITER' >> $GITHUB_OUTPUT
+          echo "$(npx -y turbo build --dry-run=json --filter=...[$TURBO_REF_FILTER]  --global-deps=.github/*)" >> $GITHUB_OUTPUT
+          echo 'CHANGESET_DELIMITER' >> $GITHUB_OUTPUT
+
+      - name: Output changed packages
+        id: output-changed-packages
+        run: |
+          echo 'changed_packages<<CHANGED_PACKAGES_DELIMITER' >> $GITHUB_OUTPUT
+          echo "${{ toJSON(fromJSON(steps.changeset.outputs.result).packages) }}" >> $GITHUB_OUTPUT
+          echo 'CHANGED_PACKAGES_DELIMITER' >> $GITHUB_OUTPUT
+
+      - name: Azure extension changed
+        id: azure_changed
+        if: ${{ contains(fromJSON(steps.changeset.outputs.result).packages, '@pr/azure-task') }}
+        run: |
+          echo "::set-output name=result::true
+
+      - name: Aws core sdk changed
+        id: aws_core_changed
+        if: ${{ contains(fromJSON(steps.changeset.outputs.result).packages, '@pr/aws-core') }}
+        run: |
+          echo "::set-output name=result::true
