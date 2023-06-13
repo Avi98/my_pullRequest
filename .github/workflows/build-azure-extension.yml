@@ -25,10 +25,14 @@ jobs:
           node-version: "14"
 
       - name: install packages
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: build package
         run: pnpm run build
+
+      - name: test
+        run: |
+          ls -al ./apps/azure-task
 
       - name: pack task V1
         run: |

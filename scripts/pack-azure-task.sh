@@ -1,28 +1,43 @@
 #!/bin/bash
 
-if [$# -ne 1];then	
-	echo "Ussage: $0 <taskVersion>"
-	exit 1
+set -e
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <taskVersion>"
+    exit 1
 fi
 
-taskPath=./taskVersions/task.$1.json
-distPath=.dist/task
+base_repo_path=$PWD
+upload_script_path="uploadScript"
+azure_task_dir="$base_repo_path/apps/azure-task"
 
-echo "copying task to $distPath"
 
-cp -r node_modules  $distPath
-cp package.json  $distPath
+if [[ $PWD == "/Users/avinash/oss/mono-review/apps/azure-task" ]]; then
+azure_task_dir="/Users/avinash/oss/mono-review/apps/azure-task"
+upload_script_path="/Users/avinash/oss/mono-review/uploadScript"
 
-# cpy bash script for starting docker in instance
-cp -r ../../uploadScript .dist/task/core
-cp -r images .dist
+fi
 
-cp vss-extension.json .dist
 
-touch $distPath/task.json && cat $taskPath > $distPath/task.json 
+taskPath="$azure_task_dir/taskVersions/task.$1.json"
+distPath="$azure_task_dir/.dist/task"
 
-cd $distPath && npm i && cd - 
+echo "Copying task to $distPath"
+cp -r "$azure_task_dir/vss-extension.json" "$azure_task_dir/.dist"
+cp -r node_modules package.json $upload_script_path "$azure_task_dir/images" "$distPath"
 
-NODE_ENV="prod"
-# change dir to .dist and then only run tfx pack cmd
-cd .dist && npx npx tfx-cli extension create --manifest-globs && npx tfx-cli isvalid && cd -
+chmod -R +x $PWD
+
+
+echo "Creating task.json"
+cp "$taskPath" "$distPath/task.json"
+
+echo "Installing dependencies"
+(
+    cd "$distPath" && pnpm i && cd -
+)
+
+echo "Building extension"
+(
+    cd "$azure_task_dir/.dist" && npx tfx-cli extension create --manifest-globs
+)
