@@ -30,10 +30,8 @@ jobs:
       - name: build package
         run: pnpm run build
 
-      - name: test
-        run: |
-          ls -al ./apps/azure-task
-          whoami
+      - name: Install tfx-cli
+        run: pnpm install --global tfx-cli
 
       - name: pack task V1
         run: |
