@@ -33,6 +33,7 @@ jobs:
       - name: test
         run: |
           ls -al ./apps/azure-task
+          whoami
 
       - name: pack task V1
         run: |
