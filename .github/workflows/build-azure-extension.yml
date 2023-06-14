@@ -42,11 +42,11 @@ jobs:
       # - name: pack task V2
       #   run: pnpm run pack:Azure:v2
 
-      - name: upload coverage reports to codcov
-        if: ${{ !github.event.act }}
-        uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      # - name: upload coverage reports to codcov
+      #   if: ${{ !github.event.act }}
+      #   uses: codecov/codecov-action@v3
+      #   env:
+      #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     # pack azure-devops-task
     # create artifact
