@@ -15,7 +15,8 @@
     "clean:install": "bash ./scripts/clean.sh && pnpm install",
     "dev": "dotenv turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "clean": "turbo run clean; rm -rf node_modules; rm -rf ./*/**/.turbo; rm -rf ./*/**/node_modules; rm -rf ./*/**/dist; rm -rf ./*/**/build; rm -rf ./*./**/.next"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -23,6 +24,7 @@
     "@types/tar": "^6.1.4",
     "eslint-config-custom": "0.0.1",
     "jest": "^29.5.0",
+    "microbundle": "^0.15.1",
     "nodemon": "^2.0.21",
     "prettier": "latest",
     "ts-node": "^10.9.1",

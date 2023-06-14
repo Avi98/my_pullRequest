@@ -26,33 +26,37 @@ const main = async () => {
   }
 };
 
-if (env.isDev && env.git?.remote_url) {
-  const ec2 = new Instance({
-    identityFilePath: buildContext.defaultPrivatePath,
-    sshPrivateKey: env.sshKeys.privateKey,
-    securityGroupId: env.securityId,
-    securityGroupName: env.securityGroup,
-    imageId: env.imageId || "ami-02f3f602d23f1659d",
-    imageType: env.imageType || "t2.micro",
-    region: env?.region || "us-east-1",
-  });
-  const ec2Starter = new LunchServer(ec2, buildContext);
-  await ec2Starter.run(env.git.remote_url).catch((e) => {
-    console.error(e);
-  });
-
-  const cleanUp = new CleanUpLoseInstance(ec2);
-  await cleanUp.run();
-} else {
-  main()
-    .then((trigger) => {
-      //clean ups
-      console.log(
-        `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️`
-      );
-      trigger?.cleanUpLoseInstance();
-    })
-    .catch((e) => {
-      setResult(TaskResult.Failed, e.message);
+const run = async () => {
+  if (env.isDev && env.git?.remote_url) {
+    const ec2 = new Instance({
+      identityFilePath: buildContext.defaultPrivatePath,
+      sshPrivateKey: env.sshKeys.privateKey,
+      securityGroupId: env.securityId,
+      securityGroupName: env.securityGroup,
+      imageId: env.imageId || "ami-02f3f602d23f1659d",
+      imageType: env.imageType || "t2.micro",
+      region: env?.region || "us-east-1",
     });
-}
+    const ec2Starter = new LunchServer(ec2, buildContext);
+    await ec2Starter.run(env.git.remote_url).catch((e) => {
+      console.error(e);
+    });
+
+    const cleanUp = new CleanUpLoseInstance(ec2);
+    await cleanUp.run();
+  } else {
+    main()
+      .then((trigger) => {
+        //clean ups
+        console.log(
+          `No ${TriggerHandle.TRIGGER_LABEL} found cleaning up instance if any 🗑️`
+        );
+        trigger?.cleanUpLoseInstance();
+      })
+      .catch((e) => {
+        setResult(TaskResult.Failed, e.message);
+      });
+  }
+};
+
+run();

@@ -17,12 +17,12 @@ jobs:
       - name: setup pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 7
+          version: 7.21.0
 
       - name: setup node11
         uses: actions/setup-node@v3
         with:
-          node-version: "14"
+          node-version: "19.9.0"
 
       - name: install packages
         run: pnpm install --no-frozen-lockfile
@@ -33,14 +33,19 @@ jobs:
       - name: Install tfx-cli
         run: pnpm install --global tfx-cli
 
-      - name: pack task V1
+      - name: current path
         run: |
-          chmod 755 ./scripts/pack-azure-task.sh
-          ./scripts/pack-azure-task.sh v1
-        shell: bash
+          current_directory=$(pwd)
+          echo "Current directory: $current_directory"
 
-      # - name: pack task V2
-      #   run: pnpm run pack:Azure:v2
+      - name: pack task V2
+        run: pnpm run pack:Azure:v2
+
+      - name: build azure task
+        run: |
+          azure_task_dir="/home/runner/work/my_pullRequest/my_pullRequest/apps/azure-task";
+          tfx extension create --root . "$azure_task_dir/.dist" --manifest-globs "$azure_task_dir/.dist/vss-extension.json" --output-path "$azure_task_dir/.dist"
+        shell: bash
 
       # - name: upload coverage reports to codcov
       #   if: ${{ !github.event.act }}
@@ -50,3 +55,14 @@ jobs:
 
     # pack azure-devops-task
     # create artifact
+
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: deploy-to-marketplace
+  #       run: |
+  #         tfx extension publish \
+  #           --publisher "avinash-live-pr" \
+  #           --vsix "$azure_task_dir/.dist/avinash-live-pr.build-release-task-0.0.91.vsix" \
+  #           --token "tnlywzsj2r53dge4n3qhpzjes52rynblhxphi4i5hqppseqbmtua" \
+  #           --output-path "$azure_task_dir/.dist"

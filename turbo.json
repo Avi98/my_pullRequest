@@ -20,6 +20,9 @@
       "dependsOn": [],
       "cache": false
     },
+    "clean": {
+      "cache": false
+    },
     "test": {}
   }
 }

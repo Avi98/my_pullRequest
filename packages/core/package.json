@@ -28,7 +28,6 @@
     "sshpk": "^1.17.0"
   },
   "devDependencies": {
-    "@types/sshpk": "^1.17.1",
-    "microbundle": "^0.15.1"
+    "@types/sshpk": "^1.17.1"
   }
 }
