@@ -1,0 +1,19 @@
+name: pnpm workflow
+description: "setup pnpm and node workflow"
+
+# inputs:
+#   node_version:
+#     description: "Node version that should be used"
+
+runs:
+  steps:
+    - name: setup node11
+      uses: actions/setup-node@v3
+      with:
+        node-version: "14"
+        cache: "pnpm"
+
+    - name: setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: "7"
