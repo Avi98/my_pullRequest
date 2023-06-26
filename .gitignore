@@ -40,3 +40,5 @@ repo_dir
 # test
 tmp
 tmp/**
+
+node_modules/**
