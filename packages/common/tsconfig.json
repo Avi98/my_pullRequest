@@ -1,0 +1,21 @@
+{
+  "include": ["src/*"],
+  "exclude": [".dist", "node_modules"],
+  "compilerOptions": {
+    "target": "ES2015",
+    "lib": ["esnext"],
+    "sourceMap": true,
+    "declarationMap": true,
+    "declaration": true,
+    "preserveConstEnums": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": false,
+    "module": "CommonJS",
+    "incremental": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "outDir": ".dist"
+  }
+}

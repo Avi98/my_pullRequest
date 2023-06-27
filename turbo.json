@@ -4,20 +4,13 @@
   "pipeline": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "lint": {
       "outputs": []
     },
     "dev": {
-      "dependsOn": ["^build"]
-    },
-    "@pr/azure-task#pack:v1": {
-      "dependsOn": [],
-      "cache": false
-    },
-    "@pr/azure-task#pack:v2": {
-      "dependsOn": [],
+      "dependsOn": ["^build"],
       "cache": false
     },
     "test": {}

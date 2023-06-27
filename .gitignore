@@ -8,10 +8,17 @@ node_modules
 # testing
 coverage
 
+#nest
+dist
+
+
 # next.js
 .next/
 out/
 build
+
+#build
+.dist
 
 # misc
 .DS_Store
@@ -24,19 +31,15 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env
+.env*.local
 
-# turbo
+# vercel
+.vercel
+
+#turbo
 .turbo
 
-
-.env
-repo_dir
-.dist
-
-# test
-tmp
-tmp/**
+# typescript
+*.tsbuildinfo
+next-env.d.ts
