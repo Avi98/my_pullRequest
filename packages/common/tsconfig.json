@@ -1,12 +1,9 @@
 {
-  //   "extends": "tsconfig/base.json",
-  "include": ["task/*"],
-  "exclude": [".dist", "build", "node_modules"],
+  "include": ["src/*"],
+  "exclude": [".dist", "node_modules"],
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2015",
     "lib": ["esnext"],
-    "moduleResolution": "nodenext",
-    "allowJs": true,
     "sourceMap": true,
     "declarationMap": true,
     "declaration": true,
@@ -15,10 +12,10 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": false,
-    "module": "ESNext",
+    "module": "CommonJS",
     "incremental": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "outDir": ".dist/task"
+    "outDir": ".dist"
   }
 }

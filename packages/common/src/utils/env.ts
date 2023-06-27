@@ -9,11 +9,13 @@ const castEnv = <T = string>({
   env: T | undefined;
   name: string;
 }): T => {
-  if (!env) throw new Error(`\n ENV for ${name} not provided`);
-  return env;
+  // if (!env) throw new Error(`\n ENV for ${name} not provided`);
+  //
+  return env as T;
 };
 
 export const env = {
+  port_BE: process.env.BE_PORT,
   imageId: process.env.IMAGE_ID,
   imageType: process.env.IMAGE_TYPE,
   region: process.env.REGION,
